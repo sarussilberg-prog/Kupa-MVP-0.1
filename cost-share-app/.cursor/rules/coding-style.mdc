@@ -1,0 +1,132 @@
+# Coding Style Rules
+
+## TypeScript
+
+### Strict Mode
+
+- NO "any" types
+- Use strict TypeScript
+- Explicit return types for functions
+- Use interfaces over types for objects
+
+```typescript
+// ✅ CORRECT
+export async function fetchGroups(): Promise<Group[]> {
+  const response = await apiGet<Group[]>('/groups');
+  return response.data || [];
+}
+
+// ❌ WRONG
+export async function fetchGroups() {
+  const response: any = await apiGet('/groups');
+  return response.data;
+}
+```
+
+## Naming Conventions
+
+### Files
+
+- Components: `PascalCase.tsx`
+- Services: `kebab-case.service.ts`
+- Utils: `kebab-case.ts`
+- Types: `index.ts` in types/
+
+### Functions
+
+- Use descriptive names
+- Prefix with action verb
+
+```typescript
+// ✅ CORRECT
+fetchGroups()
+createExpense()
+updateUser()
+
+// ❌ WRONG
+groups()
+expense()
+user()
+```
+
+### Variables
+
+- Use camelCase
+- Be descriptive
+
+```typescript
+// ✅ CORRECT
+const currentUser = useAppStore();
+const isLoading = true;
+
+// ❌ WRONG
+const u = useAppStore();
+const loading = true;
+```
+
+## Comments
+
+### File Headers
+
+Every file must have a header comment:
+
+```typescript
+/**
+ * GroupsScreen
+ * Displays list of groups with create group button
+ * NO business logic - only UI composition
+ */
+```
+
+### Function Comments
+
+Document complex functions:
+
+```typescript
+/**
+ * Create a new group
+ * This is the ONLY way to create a group from the UI
+ */
+export async function createGroup(dto: CreateGroupDto): Promise<Group | null> {
+  // ...
+}
+```
+
+## Code Organization
+
+### Imports
+
+Group imports logically:
+
+```typescript
+// 1. External libraries
+import React, { useEffect } from 'react';
+import { View, Text } from 'react-native';
+
+// 2. Internal modules
+import { useAppStore } from '../../store';
+import { fetchGroups } from '../../services/groups.service';
+
+// 3. Types
+import { Group } from '@cost-share/shared';
+```
+
+### File Structure
+
+```typescript
+// 1. Imports
+// 2. Types/Interfaces
+// 3. Constants
+// 4. Main component/function
+// 5. Helper functions
+// 6. Exports
+```
+
+## Best Practices
+
+- Keep functions small and focused
+- One responsibility per function
+- Avoid deep nesting
+- Use early returns
+- Prefer const over let
+- Use async/await over promises

@@ -1,0 +1,49 @@
+{
+    "common": {
+        "loading": "טוען...",
+        "error": "שגיאה",
+        "success": "הצלחה",
+        "cancel": "ביטול",
+        "save": "שמור",
+        "delete": "מחק",
+        "edit": "ערוך",
+        "create": "צור",
+        "back": "חזור"
+    },
+    "tabs": {
+        "groups": "קבוצות",
+        "history": "היסטוריה",
+        "profile": "פרופיל"
+    },
+    "groups": {
+        "title": "קבוצות",
+        "createGroup": "צור קבוצה",
+        "noGroups": "אין קבוצות עדיין",
+        "groupName": "שם הקבוצה",
+        "description": "תיאור",
+        "members": "חברים"
+    },
+    "history": {
+        "title": "היסטוריה",
+        "noExpenses": "אין הוצאות עדיין",
+        "paidBy": "שולם על ידי",
+        "splitBetween": "חולק בין",
+        "amount": "סכום"
+    },
+    "profile": {
+        "title": "פרופיל",
+        "language": "שפה",
+        "english": "אנגלית",
+        "hebrew": "עברית",
+        "logout": "התנתק",
+        "logoutConfirm": "האם אתה בטוח שברצונך להתנתק?",
+        "settings": "הגדרות"
+    },
+    "expenses": {
+        "addExpense": "הוסף הוצאה",
+        "description": "תיאור",
+        "amount": "סכום",
+        "category": "קטגוריה",
+        "date": "תאריך"
+    }
+}

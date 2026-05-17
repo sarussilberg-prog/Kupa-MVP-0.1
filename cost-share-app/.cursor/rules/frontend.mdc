@@ -1,0 +1,102 @@
+# Frontend Rules
+
+## Technology Stack
+
+- React Native (Expo SDK 55)
+- React Navigation (bottom tabs)
+- NativeWind (Tailwind for React Native)
+- Zustand (state management)
+- i18next (internationalization)
+
+## Styling Rules
+
+### Use NativeWind ONLY
+
+```typescript
+// ✅ CORRECT
+<View className="flex-1 bg-gray-50 p-4">
+  <Text className="text-lg font-bold">Hello</Text>
+</View>
+
+// ❌ WRONG
+<View style={{ flex: 1, backgroundColor: '#f9fafb', padding: 16 }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Hello</Text>
+</View>
+```
+
+## Screen Rules
+
+### Screens Must Be Thin
+
+Screens are composition layers ONLY:
+
+```typescript
+// ✅ CORRECT
+export function GroupsScreen() {
+  const { groups } = useAppStore();
+  
+  useEffect(() => {
+    fetchGroups(); // Service call
+  }, []);
+
+  return <View>...</View>;
+}
+
+// ❌ WRONG - Business logic in screen
+export function GroupsScreen() {
+  const [groups, setGroups] = useState([]);
+  
+  useEffect(() => {
+    fetch('/api/groups')
+      .then(res => res.json())
+      .then(data => setGroups(data));
+  }, []);
+
+  return <View>...</View>;
+}
+```
+
+## Services Layer
+
+ALL data mutations go through services/:
+
+```typescript
+// services/groups.service.ts
+export async function createGroup(dto: CreateGroupDto): Promise<Group | null> {
+  const response = await apiPost<Group>('/groups', dto);
+  
+  if (response.success && response.data) {
+    useAppStore.getState().addGroup(response.data);
+    return response.data;
+  }
+  
+  return null;
+}
+```
+
+## State Management
+
+Use Zustand for global state:
+
+```typescript
+const { groups, setGroups } = useAppStore();
+```
+
+## Internationalization
+
+ALL text must use t():
+
+```typescript
+// ✅ CORRECT
+<Text>{t('groups.title')}</Text>
+
+// ❌ WRONG
+<Text>Groups</Text>
+```
+
+## Component Rules
+
+- Components in components/ must be reusable
+- NO business logic in components
+- Use TypeScript for all components
+- Style with NativeWind

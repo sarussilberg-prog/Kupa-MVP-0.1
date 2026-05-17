@@ -1,0 +1,51 @@
+# RTL (Right-to-Left) Support Rules
+
+## Languages
+
+- English: LTR (Left-to-Right)
+- Hebrew: RTL (Right-to-Left)
+
+## Implementation
+
+Using React Native's `I18nManager`:
+
+```typescript
+import { I18nManager } from 'react-native';
+
+const isRTL = language === 'he';
+I18nManager.forceRTL(isRTL);
+```
+
+## Automatic Behavior
+
+When Hebrew is selected:
+- Text direction: RTL
+- Layout direction: RTL
+- Navigation: RTL
+- Flexbox: RTL
+
+## App Restart
+
+RTL changes may require app restart to fully apply.
+
+## Testing
+
+Test both languages:
+1. Switch to Hebrew in Profile screen
+2. Verify text flows right-to-left
+3. Verify navigation adapts
+4. Verify layout mirrors correctly
+
+## NativeWind & RTL
+
+NativeWind automatically handles RTL:
+- `ml-4` becomes `mr-4` in RTL
+- `flex-row` reverses in RTL
+- Text alignment adapts
+
+## Best Practices
+
+- Use logical properties (start/end) instead of left/right
+- Test all screens in both languages
+- Avoid hardcoded directional values
+- Use flexbox for layouts (auto-adapts to RTL)

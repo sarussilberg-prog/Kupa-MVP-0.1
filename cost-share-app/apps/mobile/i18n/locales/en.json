@@ -1,0 +1,49 @@
+{
+    "common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "cancel": "Cancel",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "create": "Create",
+        "back": "Back"
+    },
+    "tabs": {
+        "groups": "Groups",
+        "history": "History",
+        "profile": "Profile"
+    },
+    "groups": {
+        "title": "Groups",
+        "createGroup": "Create Group",
+        "noGroups": "No groups yet",
+        "groupName": "Group Name",
+        "description": "Description",
+        "members": "Members"
+    },
+    "history": {
+        "title": "History",
+        "noExpenses": "No expenses yet",
+        "paidBy": "Paid by",
+        "splitBetween": "Split between",
+        "amount": "Amount"
+    },
+    "profile": {
+        "title": "Profile",
+        "language": "Language",
+        "english": "English",
+        "hebrew": "Hebrew",
+        "logout": "Logout",
+        "logoutConfirm": "Are you sure you want to logout?",
+        "settings": "Settings"
+    },
+    "expenses": {
+        "addExpense": "Add Expense",
+        "description": "Description",
+        "amount": "Amount",
+        "category": "Category",
+        "date": "Date"
+    }
+}
