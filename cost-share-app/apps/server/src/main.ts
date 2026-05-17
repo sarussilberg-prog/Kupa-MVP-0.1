@@ -19,10 +19,11 @@ async function bootstrap() {
     app.setGlobalPrefix('api');
 
     const port = process.env.PORT || 3000;
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');  // Listen on all network interfaces
 
     console.log(`🚀 Server is running on: http://localhost:${port}/api`);
     console.log(`📱 Ready to accept requests from mobile app`);
+    console.log(`📱 Mobile devices can connect to: http://172.20.10.2:${port}/api`);
 }
 
 bootstrap();
