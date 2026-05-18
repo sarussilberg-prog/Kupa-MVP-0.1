@@ -49,6 +49,11 @@
         "restartMessage": "אנא סגור ופתח מחדש את האפליקציה כדי שהשינוי בשפה ייכנס לתוקף מלא.",
         "languageChangeError": "שינוי השפה נכשל. אנא נסה שוב."
     },
+    "auth": {
+        "signInWithGoogle": "המשך עם Google",
+        "subtitle": "חלוקת הוצאות עם חברים",
+        "signInError": "הכניסה נכשלה. אנא נסה שוב."
+    },
     "expenses": {
         "addExpense": "הוסף הוצאה",
         "description": "תיאור",

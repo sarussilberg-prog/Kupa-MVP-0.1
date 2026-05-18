@@ -12,7 +12,8 @@
         "lint": "turbo run lint",
         "clean": "turbo run clean",
         "mobile": "cd apps/mobile && npm start",
-        "server": "cd apps/server && npm run dev"
+        "server": "cd apps/server && npm run dev",
+        "web": "cd apps/web && npm run dev"
     },
     "devDependencies": {
         "turbo": "^1.13.0",
@@ -24,5 +25,6 @@
     },
     "overrides": {
         "react": "19.1.0"
-    }
+    },
+    "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
