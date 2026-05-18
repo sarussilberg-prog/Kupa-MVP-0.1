@@ -122,6 +122,74 @@ import { Group } from '@cost-share/shared';
 // 6. Exports
 ```
 
+## Styling Enforcement
+
+### NO Inline Styles
+
+**CRITICAL:** Inline styles break RTL support and theme consistency.
+
+```typescript
+// ✅ CORRECT
+<View className="flex-1 bg-white p-4">
+  <Text className="text-lg font-bold">Title</Text>
+</View>
+
+// ❌ FORBIDDEN
+<View style={{ flex: 1, backgroundColor: '#fff', padding: 16 }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Title</Text>
+</View>
+```
+
+### NO Hardcoded Colors
+
+**CRITICAL:** Use theme colors for consistency.
+
+```typescript
+// ✅ CORRECT
+import { colors } from '../../theme';
+<ActivityIndicator color={colors.primary} />
+
+// ❌ FORBIDDEN
+<ActivityIndicator color="#3B82F6" />
+<ActivityIndicator color="#0000ff" />
+<View style={{ backgroundColor: '#ffffff' }}>
+```
+
+### NO Directional Properties in Inline Styles
+
+**CRITICAL:** These break RTL support.
+
+```typescript
+// ❌ FORBIDDEN - Breaks RTL
+style={{ marginLeft: 10 }}
+style={{ marginRight: 10 }}
+style={{ paddingLeft: 10 }}
+style={{ paddingRight: 10 }}
+style={{ left: 0 }}
+style={{ right: 0 }}
+style={{ textAlign: 'left' }}
+style={{ textAlign: 'right' }}
+
+// ✅ CORRECT - Use NativeWind
+className="ml-2.5"
+className="mr-2.5"
+className="pl-2.5"
+className="pr-2.5"
+className="text-left"
+className="text-right"
+```
+
+### Code Review Checklist
+
+Before committing, verify:
+
+- [ ] NO inline styles (no `style={{}}`)
+- [ ] NO hardcoded colors (use `colors` from theme)
+- [ ] NO hardcoded spacing (use Tailwind classes)
+- [ ] NO left/right properties in styles
+- [ ] ALL text uses `t()` for i18n
+- [ ] Tested in both English and Hebrew
+
 ## Best Practices
 
 - Keep functions small and focused
@@ -130,3 +198,6 @@ import { Group } from '@cost-share/shared';
 - Use early returns
 - Prefer const over let
 - Use async/await over promises
+- Use NativeWind className ONLY
+- Import colors from theme
+- Test in both LTR and RTL

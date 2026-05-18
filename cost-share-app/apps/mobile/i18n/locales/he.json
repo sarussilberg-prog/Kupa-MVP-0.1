@@ -8,7 +8,8 @@
         "delete": "מחק",
         "edit": "ערוך",
         "create": "צור",
-        "back": "חזור"
+        "back": "חזור",
+        "ok": "אישור"
     },
     "tabs": {
         "groups": "קבוצות",
@@ -37,7 +38,10 @@
         "hebrew": "עברית",
         "logout": "התנתק",
         "logoutConfirm": "האם אתה בטוח שברצונך להתנתק?",
-        "settings": "הגדרות"
+        "settings": "הגדרות",
+        "restartRequired": "נדרשת הפעלה מחדש",
+        "restartMessage": "אנא סגור ופתח מחדש את האפליקציה כדי שהשינוי בשפה ייכנס לתוקף מלא.",
+        "languageChangeError": "שינוי השפה נכשל. אנא נסה שוב."
     },
     "expenses": {
         "addExpense": "הוסף הוצאה",

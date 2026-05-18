@@ -8,7 +8,8 @@
         "delete": "Delete",
         "edit": "Edit",
         "create": "Create",
-        "back": "Back"
+        "back": "Back",
+        "ok": "OK"
     },
     "tabs": {
         "groups": "Groups",
@@ -37,7 +38,10 @@
         "hebrew": "Hebrew",
         "logout": "Logout",
         "logoutConfirm": "Are you sure you want to logout?",
-        "settings": "Settings"
+        "settings": "Settings",
+        "restartRequired": "Restart Required",
+        "restartMessage": "Please close and reopen the app for the language change to take full effect.",
+        "languageChangeError": "Failed to change language. Please try again."
     },
     "expenses": {
         "addExpense": "Add Expense",

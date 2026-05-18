@@ -9,6 +9,7 @@ import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
 import { fetchExpenses } from '../../services/expenses.service';
+import { colors } from '../../theme';
 import { Expense } from '@cost-share/shared';
 import { formatCurrency } from '@cost-share/shared';
 
@@ -52,7 +53,7 @@ export function HistoryScreen() {
     if (isLoading) {
         return (
             <View className="flex-1 justify-center items-center bg-gray-50">
-                <ActivityIndicator size="large" color="#0000ff" />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text className="mt-4 text-gray-600">{t('common.loading')}</Text>
             </View>
         );

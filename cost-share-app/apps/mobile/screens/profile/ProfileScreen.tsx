@@ -4,8 +4,8 @@
  * NO business logic - only UI composition
  */
 
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
 import { changeLanguage } from '../../i18n';
@@ -13,10 +13,40 @@ import { changeLanguage } from '../../i18n';
 export function ProfileScreen() {
     const { t } = useTranslation();
     const { currentUser, language, setLanguage } = useAppStore();
+    const [isChangingLanguage, setIsChangingLanguage] = useState(false);
 
     const handleLanguageChange = async (newLanguage: 'en' | 'he') => {
-        await changeLanguage(newLanguage);
-        setLanguage(newLanguage);
+        if (newLanguage === language) return; // Already selected
+
+        setIsChangingLanguage(true);
+
+        try {
+            const needsRestart = await changeLanguage(newLanguage);
+            setLanguage(newLanguage);
+
+            // Show restart prompt if RTL changed
+            if (needsRestart) {
+                Alert.alert(
+                    t('profile.restartRequired'),
+                    t('profile.restartMessage'),
+                    [
+                        {
+                            text: t('common.ok'),
+                            onPress: () => console.log('User acknowledged restart needed'),
+                        },
+                    ]
+                );
+            }
+        } catch (error) {
+            console.error('Failed to change language:', error);
+            Alert.alert(
+                t('common.error'),
+                t('profile.languageChangeError'),
+                [{ text: t('common.ok') }]
+            );
+        } finally {
+            setIsChangingLanguage(false);
+        }
     };
 
     const handleLogout = () => {
