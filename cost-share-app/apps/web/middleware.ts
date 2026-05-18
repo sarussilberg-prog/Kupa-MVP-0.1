@@ -30,6 +30,10 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  if (pathname.startsWith('/login') && user) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   // Let public routes through
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return response;

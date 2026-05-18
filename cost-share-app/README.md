@@ -10,6 +10,7 @@ This is a **production-grade monorepo** using Turborepo with strict architectura
 cost-share-app/
 ├── apps/
 │   ├── mobile/     # React Native (Expo) frontend
+│   ├── web/        # Next.js web app (Supabase auth)
 │   ├── server/     # NestJS backend with mock data
 ├── packages/
 │   ├── shared/     # Shared TypeScript types
@@ -19,8 +20,9 @@ cost-share-app/
 
 ## 🚀 Tech Stack
 
-### Frontend (Mobile)
-- **React Native** with Expo SDK 55
+### Frontend (Mobile + Web)
+- **React Native** with Expo SDK 54
+- **Next.js 15** web client with Supabase SSR auth
 - **React Navigation** (bottom tabs, WhatsApp-style)
 - **NativeWind** (Tailwind CSS for React Native)
 - **Zustand** (state management)
@@ -86,16 +88,12 @@ cd cost-share-app
 npm install
 ```
 
-2. **Install workspace dependencies:**
+2. **Configure Supabase env (see `.env.example` in each app):**
 ```bash
-# Install shared package dependencies
-cd packages/shared && npm install && cd ../..
-
-# Install server dependencies
-cd apps/server && npm install && cd ../..
-
-# Install mobile dependencies
-cd apps/mobile && npm install && cd ../..
+cp apps/mobile/.env.example apps/mobile/.env
+cp apps/web/.env.example apps/web/.env.local
+# Fill keys from Supabase → Project Settings → API
+# Enable Google provider + redirect URLs (documented in .env.example files)
 ```
 
 ### Running the Project
@@ -120,6 +118,15 @@ Then:
 - Press `i` for iOS simulator
 - Press `a` for Android emulator
 - Scan QR code with Expo Go app
+
+#### Start Web App
+```bash
+npm run web
+# or
+cd apps/web && npm run dev
+```
+
+Web runs on: `http://localhost:3000`
 
 ### Development
 
@@ -236,7 +243,7 @@ This project follows production-grade patterns even though it uses mock data:
 ## 🔄 Future Enhancements
 
 - [ ] Migrate to Supabase database
-- [ ] Add authentication
+- [x] Add authentication (Google via Supabase — mobile + web)
 - [ ] Implement offline support
 - [ ] Add expense splitting logic
 - [ ] Add push notifications
