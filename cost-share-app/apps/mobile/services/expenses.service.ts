@@ -7,6 +7,8 @@
 import { Expense, CreateExpenseDto, ApiResponse } from '@cost-share/shared';
 import { apiGet, apiPost } from './api';
 import { useAppStore } from '../store';
+import Toast from 'react-native-toast-message';
+import i18n from '../i18n';
 
 /**
  * Fetch all expenses from API
@@ -21,6 +23,14 @@ export async function fetchExpenses(groupId?: string): Promise<Expense[]> {
         return response.data;
     }
 
+    // Show error toast
+    console.error('Failed to fetch expenses:', response.error);
+    Toast.show({
+        type: 'error',
+        text1: i18n.t('history.loadError'),
+        text2: response.error || i18n.t('common.networkError'),
+    });
+
     return [];
 }
 
@@ -34,8 +44,24 @@ export async function createExpense(dto: CreateExpenseDto): Promise<Expense | nu
     if (response.success && response.data) {
         // Update store
         useAppStore.getState().addExpense(response.data);
+
+        // Show success toast
+        Toast.show({
+            type: 'success',
+            text1: i18n.t('common.success'),
+            text2: i18n.t('expenses.addExpense'),
+        });
+
         return response.data;
     }
+
+    // Show error toast
+    console.error('Failed to create expense:', response.error);
+    Toast.show({
+        type: 'error',
+        text1: i18n.t('history.createError'),
+        text2: response.error || i18n.t('common.networkError'),
+    });
 
     return null;
 }

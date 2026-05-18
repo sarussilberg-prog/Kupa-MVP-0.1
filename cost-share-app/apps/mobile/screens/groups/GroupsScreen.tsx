@@ -5,25 +5,27 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
 import { fetchGroups } from '../../services/groups.service';
-import { colors } from '../../theme';
+import { useLoading } from '../../hooks/useLoading';
+import { LoadingIndicator } from '../../components/LoadingIndicator';
 import { Group } from '@cost-share/shared';
 
 export function GroupsScreen() {
     const { t } = useTranslation();
-    const { groups, isLoading, setIsLoading } = useAppStore();
+    const { groups } = useAppStore();
+    const { isLoading, startLoading, stopLoading } = useLoading();
 
     useEffect(() => {
         loadGroups();
     }, []);
 
     const loadGroups = async () => {
-        setIsLoading(true);
+        startLoading();
         await fetchGroups();
-        setIsLoading(false);
+        stopLoading();
     };
 
     const handleCreateGroup = () => {
@@ -44,12 +46,7 @@ export function GroupsScreen() {
     );
 
     if (isLoading) {
-        return (
-            <View className="flex-1 justify-center items-center bg-gray-50">
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text className="mt-4 text-gray-600">{t('common.loading')}</Text>
-            </View>
-        );
+        return <LoadingIndicator />;
     }
 
     return (

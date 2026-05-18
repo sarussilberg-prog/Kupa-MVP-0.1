@@ -9,7 +9,9 @@
         "edit": "ערוך",
         "create": "צור",
         "back": "חזור",
-        "ok": "אישור"
+        "ok": "אישור",
+        "loadError": "טעינת הנתונים נכשלה",
+        "networkError": "שגיאת רשת. אנא בדוק את החיבור שלך."
     },
     "tabs": {
         "groups": "קבוצות",
@@ -22,14 +24,18 @@
         "noGroups": "אין קבוצות עדיין",
         "groupName": "שם הקבוצה",
         "description": "תיאור",
-        "members": "חברים"
+        "members": "חברים",
+        "loadError": "טעינת הקבוצות נכשלה",
+        "createError": "יצירת הקבוצה נכשלה"
     },
     "history": {
         "title": "היסטוריה",
         "noExpenses": "אין הוצאות עדיין",
         "paidBy": "שולם על ידי",
         "splitBetween": "חולק בין",
-        "amount": "סכום"
+        "amount": "סכום",
+        "loadError": "טעינת ההוצאות נכשלה",
+        "createError": "יצירת ההוצאה נכשלה"
     },
     "profile": {
         "title": "פרופיל",

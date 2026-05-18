@@ -9,7 +9,9 @@
         "edit": "Edit",
         "create": "Create",
         "back": "Back",
-        "ok": "OK"
+        "ok": "OK",
+        "loadError": "Failed to load data",
+        "networkError": "Network error. Please check your connection."
     },
     "tabs": {
         "groups": "Groups",
@@ -22,14 +24,18 @@
         "noGroups": "No groups yet",
         "groupName": "Group Name",
         "description": "Description",
-        "members": "Members"
+        "members": "Members",
+        "loadError": "Failed to load groups",
+        "createError": "Failed to create group"
     },
     "history": {
         "title": "History",
         "noExpenses": "No expenses yet",
         "paidBy": "Paid by",
         "splitBetween": "Split between",
-        "amount": "Amount"
+        "amount": "Amount",
+        "loadError": "Failed to load expenses",
+        "createError": "Failed to create expense"
     },
     "profile": {
         "title": "Profile",

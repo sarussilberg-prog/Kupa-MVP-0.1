@@ -21,10 +21,6 @@ interface AppState {
     setExpenses: (expenses: Expense[]) => void;
     addExpense: (expense: Expense) => void;
 
-    // UI state
-    isLoading: boolean;
-    setIsLoading: (loading: boolean) => void;
-
     // Language state
     language: 'en' | 'he';
     setLanguage: (language: 'en' | 'he') => void;
@@ -44,10 +40,6 @@ export const useAppStore = create<AppState>((set) => ({
     expenses: [],
     setExpenses: (expenses) => set({ expenses }),
     addExpense: (expense) => set((state) => ({ expenses: [...state.expenses, expense] })),
-
-    // UI state
-    isLoading: false,
-    setIsLoading: (loading) => set({ isLoading: loading }),
 
     // Language state
     language: 'en',
