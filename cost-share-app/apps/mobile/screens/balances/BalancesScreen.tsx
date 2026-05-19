@@ -1,235 +1,170 @@
 /**
  * BalancesScreen
- * Displays user balances and simplified debts for a group
- * NO business logic - only UI composition
+ * Group balances and simplified debts
+ * Uses NativeWind styling only, full i18n support
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRoute, RouteProp } from '@react-navigation/native';
-import { getGroupBalances, getGroupDebts } from '../../services/groups.service';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { UserBalance, DebtSummary, User } from '@cost-share/shared';
 import { useLoading } from '../../hooks/useLoading';
+import { getGroupBalances, getGroupDebts } from '../../services/groups.service';
+import { fetchUsers } from '../../services/users.service';
 import { LoadingIndicator } from '../../components/LoadingIndicator';
-import { UserBalance, DebtSummary } from '@cost-share/shared';
-import { colors } from '../../theme/colors';
-
-type RootStackParamList = {
-    Balances: { groupId: string };
-};
-
-type BalancesScreenRouteProp = RouteProp<RootStackParamList, 'Balances'>;
+import { BalanceCard } from '../../components/BalanceCard';
+import { Button } from '../../components/Button';
+import { colors } from '../../theme';
 
 export function BalancesScreen() {
     const { t } = useTranslation();
-    const route = useRoute<BalancesScreenRouteProp>();
+    const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const { groupId } = route.params;
-
     const { isLoading, startLoading, stopLoading } = useLoading();
+
     const [balances, setBalances] = useState<UserBalance[]>([]);
     const [debts, setDebts] = useState<DebtSummary[]>([]);
-    const [activeTab, setActiveTab] = useState<'balances' | 'debts'>('balances');
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        loadBalancesData();
-    }, [groupId]);
-
-    const loadBalancesData = async () => {
+    const loadData = useCallback(async () => {
         startLoading();
-
-        const [balancesData, debtsData] = await Promise.all([
+        const [balancesData, debtsData, usersData] = await Promise.all([
             getGroupBalances(groupId),
             getGroupDebts(groupId),
+            fetchUsers(),
         ]);
-
         setBalances(balancesData);
         setDebts(debtsData);
-
+        setAllUsers(usersData);
         stopLoading();
+    }, [groupId, startLoading, stopLoading]);
+
+    useEffect(() => {
+        void loadData();
+    }, []);
+
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadData();
+        setRefreshing(false);
+    }, [loadData]);
+
+    const getUserName = (userId: string): string => {
+        return allUsers.find((u) => u.id === userId)?.name || t('common.unknown');
     };
 
-    const renderBalance = ({ item }: { item: UserBalance }) => {
-        const isPositive = item.netBalance > 0;
-        const isZero = Math.abs(item.netBalance) < 0.01;
-
-        return (
-            <View className="bg-white p-4 mb-2 rounded-lg shadow">
-                <View className="flex-row justify-between items-center mb-3">
-                    <Text className="text-base font-semibold text-gray-900">
-                        {item.userId}
-                    </Text>
-                    <View className="items-end">
-                        <Text
-                            className="text-xl font-bold"
-                            style={{
-                                color: isZero
-                                    ? colors.gray500
-                                    : isPositive
-                                        ? colors.success
-                                        : colors.error,
-                            }}
-                        >
-                            {item.currency} {Math.abs(item.netBalance).toFixed(2)}
-                        </Text>
-                        <Text className="text-xs text-gray-500 mt-1">
-                            {isZero
-                                ? 'Settled up'
-                                : isPositive
-                                    ? 'Gets back'
-                                    : 'Owes'}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Detailed breakdown */}
-                <View className="pt-3 border-t border-gray-200">
-                    <View className="flex-row justify-between mb-1">
-                        <Text className="text-sm text-gray-600">Paid:</Text>
-                        <Text className="text-sm text-gray-900">
-                            {item.currency} {item.totalPaid.toFixed(2)}
-                        </Text>
-                    </View>
-                    <View className="flex-row justify-between mb-1">
-                        <Text className="text-sm text-gray-600">Owes:</Text>
-                        <Text className="text-sm text-gray-900">
-                            {item.currency} {item.totalOwed.toFixed(2)}
-                        </Text>
-                    </View>
-                    {item.totalSettledPaid > 0 && (
-                        <View className="flex-row justify-between mb-1">
-                            <Text className="text-sm text-gray-600">Settled (paid):</Text>
-                            <Text className="text-sm text-gray-900">
-                                {item.currency} {item.totalSettledPaid.toFixed(2)}
-                            </Text>
-                        </View>
-                    )}
-                    {item.totalSettledReceived > 0 && (
-                        <View className="flex-row justify-between">
-                            <Text className="text-sm text-gray-600">Settled (received):</Text>
-                            <Text className="text-sm text-gray-900">
-                                {item.currency} {item.totalSettledReceived.toFixed(2)}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            </View>
-        );
+    const getUserAvatar = (userId: string): string | undefined => {
+        return allUsers.find((u) => u.id === userId)?.avatarUrl;
     };
 
-    const renderDebt = ({ item }: { item: DebtSummary }) => {
-        return (
-            <View className="bg-white p-4 mb-2 rounded-lg shadow">
-                <View className="flex-row items-center">
-                    <View className="flex-1">
-                        <Text className="text-base text-gray-900">
-                            <Text className="font-semibold">{item.fromUserName}</Text>
-                            <Text className="text-gray-600"> owes </Text>
-                            <Text className="font-semibold">{item.toUserName}</Text>
-                        </Text>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-xl font-bold" style={{ color: colors.primary }}>
-                            {item.currency} {item.amount.toFixed(2)}
-                        </Text>
-                    </View>
-                </View>
+    const handleSettleUp = useCallback(
+        (debt: DebtSummary) => {
+            navigation.navigate('SettleUp', {
+                groupId,
+                fromUserId: debt.fromUserId,
+                toUserId: debt.toUserId,
+                amount: debt.amount,
+                currency: debt.currency,
+            });
+        },
+        [navigation, groupId]
+    );
 
-                {/* Settle Up Button */}
-                <TouchableOpacity
-                    className="mt-3 p-3 rounded-lg border-2"
-                    style={{ borderColor: colors.primary }}
-                >
-                    <Text
-                        className="text-center font-semibold"
-                        style={{ color: colors.primary }}
-                    >
-                        {t('groups.settleUp')}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    };
+    const handleViewHistory = useCallback(() => {
+        navigation.navigate('SettlementHistory', { groupId });
+    }, [navigation, groupId]);
 
-    if (isLoading) {
+    if (isLoading && balances.length === 0) {
         return <LoadingIndicator />;
     }
 
     return (
-        <View className="flex-1 bg-gray-50">
-            {/* Tab Selector */}
-            <View className="bg-white p-2 flex-row shadow">
-                <TouchableOpacity
-                    onPress={() => setActiveTab('balances')}
-                    className="flex-1 p-3 rounded-lg"
-                    style={{
-                        backgroundColor:
-                            activeTab === 'balances' ? colors.primary : 'transparent',
-                    }}
-                >
-                    <Text
-                        className="text-center font-semibold"
-                        style={{
-                            color: activeTab === 'balances' ? 'white' : colors.gray600,
-                        }}
-                    >
-                        {t('groups.balances')}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => setActiveTab('debts')}
-                    className="flex-1 p-3 rounded-lg"
-                    style={{
-                        backgroundColor:
-                            activeTab === 'debts' ? colors.primary : 'transparent',
-                    }}
-                >
-                    <Text
-                        className="text-center font-semibold"
-                        style={{
-                            color: activeTab === 'debts' ? 'white' : colors.gray600,
-                        }}
-                    >
-                        Simplified Debts
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Content */}
-            <View className="flex-1 p-4">
-                {activeTab === 'balances' ? (
-                    balances.length === 0 ? (
-                        <View className="flex-1 justify-center items-center">
-                            <Text className="text-gray-500 text-center">
-                                No balance data available
-                            </Text>
-                        </View>
-                    ) : (
-                        <FlatList
-                            data={balances}
-                            renderItem={renderBalance}
-                            keyExtractor={(item) => item.userId}
-                            showsVerticalScrollIndicator={false}
-                        />
-                    )
-                ) : debts.length === 0 ? (
-                    <View className="flex-1 justify-center items-center">
-                        <Text className="text-gray-500 text-center text-lg mb-2">
-                            🎉 All settled up!
-                        </Text>
-                        <Text className="text-gray-400 text-center">
-                            No outstanding debts in this group
-                        </Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={debts}
-                        renderItem={renderDebt}
-                        keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
-                        showsVerticalScrollIndicator={false}
+        <ScrollView
+            className="flex-1 bg-slate-50"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={colors.primary}
+                />
+            }
+        >
+            {/* Balances */}
+            <View className="px-4 pt-4 mb-4">
+                <Text className="text-lg font-semibold text-gray-900 mb-3">
+                    {t('balances.title')}
+                </Text>
+                {balances.map((balance) => (
+                    <BalanceCard
+                        key={balance.userId}
+                        userName={getUserName(balance.userId)}
+                        avatarUrl={getUserAvatar(balance.userId)}
+                        balance={balance.netBalance}
+                        currency={balance.currency}
                     />
+                ))}
+                {balances.length === 0 && (
+                    <View className="bg-white rounded-xl p-6 items-center">
+                        <Text className="text-gray-400">{t('balances.noBalances')}</Text>
+                    </View>
                 )}
             </View>
-        </View>
+
+            {/* Simplified Debts */}
+            <View className="px-4 mb-4">
+                <Text className="text-lg font-semibold text-gray-900 mb-3">
+                    {t('balances.simplifiedDebts')}
+                </Text>
+                {debts.length > 0 ? (
+                    debts.map((debt, index) => (
+                        <View
+                            key={`${debt.fromUserId}-${debt.toUserId}-${index}`}
+                            className="bg-white rounded-xl p-4 mb-2"
+                        >
+                            <View className="flex-row items-center justify-between mb-3">
+                                <View className="flex-1">
+                                    <Text className="text-sm text-gray-500">
+                                        {debt.fromUserName}
+                                    </Text>
+                                    <Text className="text-xs text-gray-400">
+                                        {t('balances.owes')} {debt.toUserName}
+                                    </Text>
+                                </View>
+                                <Text className="text-base font-bold text-red-500">
+                                    {debt.currency} {debt.amount.toFixed(2)}
+                                </Text>
+                            </View>
+                            <Button
+                                title={t('groups.settleUp')}
+                                onPress={() => handleSettleUp(debt)}
+                                variant="secondary"
+                            />
+                        </View>
+                    ))
+                ) : (
+                    <View className="bg-green-50 rounded-xl p-6 items-center">
+                        <Text className="text-2xl mb-2">✅</Text>
+                        <Text className="text-base font-medium text-green-700">
+                            {t('balances.allSettled')}
+                        </Text>
+                        <Text className="text-sm text-green-600 mt-1">
+                            {t('balances.noDebts')}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Settlement History Link */}
+            <View className="px-4 mb-8">
+                <Button
+                    title={t('balances.settlementHistory')}
+                    onPress={handleViewHistory}
+                    variant="outline"
+                />
+            </View>
+        </ScrollView>
     );
 }

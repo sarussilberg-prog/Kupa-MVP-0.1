@@ -7,7 +7,7 @@ import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { SettlementsService } from '../services/settlements.service';
 import { CreateSettlementDto } from '@cost-share/shared';
 
-@Controller('api/settlements')
+@Controller('settlements')
 export class SettlementsController {
     constructor(private settlementsService: SettlementsService) { }
 

@@ -1,215 +1,245 @@
 /**
  * GroupDetailScreen
- * Displays group details, expenses, and balances
- * NO business logic - only UI composition
+ * Group detail with summary stats, recent expenses, and actions
+ * Uses NativeWind styling only, full i18n support
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+    Group,
+    GroupMember,
+    GroupSummary,
+    UserBalance,
+    Expense,
+} from '@cost-share/shared';
+import { useLoading } from '../../hooks/useLoading';
+import { useAppStore } from '../../store';
 import {
     getGroupById,
     getGroupMembers,
     getGroupSummary,
-    getGroupBalances
+    getGroupBalances,
+    deleteGroup,
 } from '../../services/groups.service';
 import { fetchExpenses } from '../../services/expenses.service';
-import { useLoading } from '../../hooks/useLoading';
 import { LoadingIndicator } from '../../components/LoadingIndicator';
-import { Group, GroupMember, GroupSummary, UserBalance, Expense } from '@cost-share/shared';
-import { colors } from '../../theme/colors';
-
-type RootStackParamList = {
-    GroupDetail: { groupId: string };
-    AddExpense: { groupId: string };
-    Balances: { groupId: string };
-};
-
-type GroupDetailScreenRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
-type GroupDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { ExpenseCard } from '../../components/ExpenseCard';
+import { EmptyState } from '../../components/EmptyState';
+import { Button } from '../../components/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { colors } from '../../theme';
 
 export function GroupDetailScreen() {
     const { t } = useTranslation();
-    const route = useRoute<GroupDetailScreenRouteProp>();
-    const navigation = useNavigation<GroupDetailScreenNavigationProp>();
+    const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const { groupId } = route.params;
-
     const { isLoading, startLoading, stopLoading } = useLoading();
+
     const [group, setGroup] = useState<Group | null>(null);
     const [members, setMembers] = useState<GroupMember[]>([]);
     const [summary, setSummary] = useState<GroupSummary | null>(null);
     const [balances, setBalances] = useState<UserBalance[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    useEffect(() => {
-        loadGroupData();
-    }, [groupId]);
+    const allExpenses = useAppStore((state) => state.expenses);
+    const expenses = useMemo(
+        () => allExpenses.filter((e) => e.groupId === groupId && !e.isDeleted),
+        [allExpenses, groupId]
+    );
 
-    const loadGroupData = async () => {
+    const loadGroupData = useCallback(async () => {
         startLoading();
-
-        // Load all group data in parallel
-        const [groupData, membersData, summaryData, balancesData, expensesData] = await Promise.all([
+        const [groupData, membersData, summaryData, balancesData] = await Promise.all([
             getGroupById(groupId),
             getGroupMembers(groupId),
             getGroupSummary(groupId),
             getGroupBalances(groupId),
-            fetchExpenses(groupId),
         ]);
+        await fetchExpenses(groupId);
 
-        setGroup(groupData);
+        if (groupData) setGroup(groupData);
         setMembers(membersData);
-        setSummary(summaryData);
+        if (summaryData) setSummary(summaryData);
         setBalances(balancesData);
-        setExpenses(expensesData);
-
         stopLoading();
-    };
+    }, [groupId, startLoading, stopLoading]);
 
-    const handleAddExpense = () => {
+    useEffect(() => {
+        void loadGroupData();
+    }, []);
+
+    const handleRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadGroupData();
+        setRefreshing(false);
+    }, [loadGroupData]);
+
+    const handleAddExpense = useCallback(() => {
         navigation.navigate('AddExpense', { groupId });
-    };
+    }, [navigation, groupId]);
 
-    const handleViewBalances = () => {
+    const handleViewBalances = useCallback(() => {
         navigation.navigate('Balances', { groupId });
-    };
+    }, [navigation, groupId]);
 
-    const renderExpense = ({ item }: { item: Expense }) => {
-        const payer = members.find(m => m.userId === item.paidBy);
+    const handleViewMembers = useCallback(() => {
+        navigation.navigate('GroupMembers', { groupId });
+    }, [navigation, groupId]);
 
-        return (
-            <View className="bg-white p-4 mb-2 rounded-lg shadow">
-                <View className="flex-row justify-between items-start">
-                    <View className="flex-1">
-                        <Text className="text-base font-semibold text-gray-900">
-                            {item.description}
-                        </Text>
-                        <Text className="text-sm text-gray-500 mt-1">
-                            {t('history.paidBy')}: {payer?.userId || 'Unknown'}
-                        </Text>
-                        {item.category && (
-                            <Text className="text-xs text-gray-400 mt-1">
-                                {item.category}
-                            </Text>
-                        )}
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-lg font-bold" style={{ color: colors.primary }}>
-                            {item.currency} {item.amount.toFixed(2)}
-                        </Text>
-                        <Text className="text-xs text-gray-400 mt-1">
-                            {new Date(item.expenseDate).toLocaleDateString()}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-        );
-    };
+    const handleEditGroup = useCallback(() => {
+        navigation.navigate('EditGroup', { groupId });
+    }, [navigation, groupId]);
 
-    if (isLoading) {
+    const handleDeleteGroup = useCallback(async () => {
+        setShowDeleteDialog(false);
+        const success = await deleteGroup(groupId);
+        if (success) {
+            navigation.goBack();
+        }
+    }, [groupId, navigation]);
+
+    const handleExpensePress = useCallback(
+        (expenseId: string) => {
+            navigation.navigate('ExpenseDetail', { expenseId, groupId });
+        },
+        [navigation, groupId]
+    );
+
+    if (isLoading && !group) {
         return <LoadingIndicator />;
     }
 
     if (!group) {
         return (
-            <View className="flex-1 justify-center items-center bg-gray-50">
-                <Text className="text-gray-500 text-lg">{t('common.error')}</Text>
-            </View>
+            <EmptyState
+                icon="❌"
+                title={t('common.error')}
+                message={t('common.loadError')}
+            />
         );
     }
 
+    const recentExpenses = expenses
+        .sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime())
+        .slice(0, 5);
+
     return (
-        <View className="flex-1 bg-gray-50">
-            <ScrollView>
-                {/* Group Header */}
-                <View className="bg-white p-6 mb-4 shadow">
-                    <Text className="text-2xl font-bold text-gray-900 mb-2">
-                        {group.name}
+        <ScrollView
+            className="flex-1 bg-slate-50"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={colors.primary}
+                />
+            }
+        >
+            {/* Group Header */}
+            <View className="bg-white px-4 py-5 mb-4">
+                <Text className="text-2xl font-bold text-gray-900">{group.name}</Text>
+                {group.description && (
+                    <Text className="text-sm text-gray-500 mt-1">{group.description}</Text>
+                )}
+            </View>
+
+            {/* Stats */}
+            <View className="flex-row px-4 mb-4 gap-3">
+                <View className="flex-1 bg-white rounded-xl p-4 items-center">
+                    <Text className="text-2xl font-bold text-primary">
+                        {summary?.memberCount || members.length}
                     </Text>
-                    {group.description && (
-                        <Text className="text-gray-600 mb-3">
-                            {group.description}
-                        </Text>
-                    )}
-
-                    {/* Group Stats */}
-                    {summary && (
-                        <View className="flex-row justify-around mt-4 pt-4 border-t border-gray-200">
-                            <View className="items-center">
-                                <Text className="text-2xl font-bold" style={{ color: colors.primary }}>
-                                    {summary.memberCount}
-                                </Text>
-                                <Text className="text-sm text-gray-500 mt-1">
-                                    {t('groups.members')}
-                                </Text>
-                            </View>
-                            <View className="items-center">
-                                <Text className="text-2xl font-bold" style={{ color: colors.primary }}>
-                                    {summary.expenseCount}
-                                </Text>
-                                <Text className="text-sm text-gray-500 mt-1">
-                                    {t('groups.expenses')}
-                                </Text>
-                            </View>
-                            <View className="items-center">
-                                <Text className="text-2xl font-bold" style={{ color: colors.primary }}>
-                                    {summary.totalSpent.toFixed(2)}
-                                </Text>
-                                <Text className="text-sm text-gray-500 mt-1">
-                                    {summary.defaultCurrency}
-                                </Text>
-                            </View>
-                        </View>
-                    )}
+                    <Text className="text-xs text-gray-500 mt-1">{t('groups.members')}</Text>
                 </View>
-
-                {/* Action Buttons */}
-                <View className="px-4 mb-4">
-                    <TouchableOpacity
-                        onPress={handleAddExpense}
-                        className="p-4 rounded-lg mb-3"
-                        style={{ backgroundColor: colors.primary }}
-                    >
-                        <Text className="text-white text-center font-bold text-lg">
-                            {t('expenses.addExpense')}
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={handleViewBalances}
-                        className="bg-white p-4 rounded-lg border-2"
-                        style={{ borderColor: colors.primary }}
-                    >
-                        <Text className="text-center font-bold text-lg" style={{ color: colors.primary }}>
-                            {t('groups.balances')}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Recent Expenses */}
-                <View className="px-4 mb-4">
-                    <Text className="text-lg font-bold text-gray-900 mb-3">
-                        {t('groups.expenses')}
+                <View className="flex-1 bg-white rounded-xl p-4 items-center">
+                    <Text className="text-2xl font-bold text-primary">
+                        {summary?.expenseCount || 0}
                     </Text>
+                    <Text className="text-xs text-gray-500 mt-1">{t('groups.expenses')}</Text>
+                </View>
+                <View className="flex-1 bg-white rounded-xl p-4 items-center">
+                    <Text className="text-2xl font-bold text-primary">
+                        {group.defaultCurrency} {(summary?.totalSpent || 0).toFixed(0)}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1">{t('groups.totalSpent')}</Text>
+                </View>
+            </View>
 
-                    {expenses.length === 0 ? (
-                        <View className="bg-white p-8 rounded-lg items-center">
-                            <Text className="text-gray-500 text-center">
-                                {t('history.noExpenses')}
-                            </Text>
-                        </View>
-                    ) : (
-                        <FlatList
-                            data={expenses.slice(0, 5)} // Show only recent 5
-                            renderItem={renderExpense}
-                            keyExtractor={(item) => item.id}
-                            scrollEnabled={false}
+            {/* Action Buttons */}
+            <View className="px-4 mb-4 gap-2">
+                <Button
+                    title={t('expenses.addExpense')}
+                    onPress={handleAddExpense}
+                />
+                <View className="flex-row gap-2">
+                    <View className="flex-1">
+                        <Button
+                            title={t('groups.balances')}
+                            onPress={handleViewBalances}
+                            variant="secondary"
                         />
-                    )}
+                    </View>
+                    <View className="flex-1">
+                        <Button
+                            title={t('groups.members')}
+                            onPress={handleViewMembers}
+                            variant="outline"
+                        />
+                    </View>
                 </View>
-            </ScrollView>
-        </View>
+            </View>
+
+            {/* Recent Expenses */}
+            <View className="px-4 mb-4">
+                <Text className="text-lg font-semibold text-gray-900 mb-3">
+                    {t('expenses.recentExpenses')}
+                </Text>
+                {recentExpenses.length > 0 ? (
+                    recentExpenses.map((expense) => (
+                        <ExpenseCard
+                            key={expense.id}
+                            expense={expense}
+                            onPress={handleExpensePress}
+                        />
+                    ))
+                ) : (
+                    <View className="bg-white rounded-xl p-6 items-center">
+                        <Text className="text-gray-400">
+                            {t('expenses.noExpenses')}
+                        </Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Group Actions */}
+            <View className="px-4 mb-8 gap-2">
+                <Button
+                    title={t('common.edit')}
+                    onPress={handleEditGroup}
+                    variant="outline"
+                />
+                <Button
+                    title={t('common.delete')}
+                    onPress={() => setShowDeleteDialog(true)}
+                    variant="danger"
+                />
+            </View>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                visible={showDeleteDialog}
+                title={t('groups.deleteGroup')}
+                message={t('groups.deleteGroupConfirm')}
+                confirmText={t('common.delete')}
+                cancelText={t('common.cancel')}
+                onConfirm={handleDeleteGroup}
+                onCancel={() => setShowDeleteDialog(false)}
+                destructive
+            />
+        </ScrollView>
     );
 }

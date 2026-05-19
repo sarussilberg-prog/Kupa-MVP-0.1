@@ -17,7 +17,7 @@ import {
     DebtSummary
 } from '@cost-share/shared';
 
-@Controller('api/groups')
+@Controller('groups')
 export class GroupsController {
     constructor(
         private readonly groupsService: GroupsService,

@@ -7,7 +7,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/
 import { ExpensesService } from '../services/expenses.service';
 import { ApiResponse, Expense, ExpenseSplit, CreateExpenseDto, UpdateExpenseDto } from '@cost-share/shared';
 
-@Controller('api/expenses')
+@Controller('expenses')
 export class ExpensesController {
     constructor(private readonly expensesService: ExpensesService) { }
 

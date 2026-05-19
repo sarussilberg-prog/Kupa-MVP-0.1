@@ -1,123 +1,109 @@
 /**
  * AddExpenseScreen
- * Form to create a new expense with split options
- * NO business logic - only UI composition
+ * Form to create a new expense with splits
+ * Uses NativeWind styling only, full i18n support
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
-import { getGroupMembers } from '../../services/groups.service';
-import { createExpense } from '../../services/expenses.service';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { ExpenseCategory, GroupMember, User, ExpenseSplitInput } from '@cost-share/shared';
 import { useLoading } from '../../hooks/useLoading';
-import { LoadingIndicator } from '../../components/LoadingIndicator';
-import { CurrencyPicker } from '../../components/CurrencyPicker';
 import { useAppStore } from '../../store';
-import { GroupMember, CreateExpenseDto, ExpenseCategory } from '@cost-share/shared';
-import { colors } from '../../theme/colors';
-
-type RootStackParamList = {
-    AddExpense: { groupId: string };
-};
-
-type AddExpenseScreenRouteProp = RouteProp<RootStackParamList, 'AddExpense'>;
-
-const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-    'food',
-    'transport',
-    'accommodation',
-    'utilities',
-    'entertainment',
-    'shopping',
-    'healthcare',
-    'other',
-];
+import { createExpense } from '../../services/expenses.service';
+import { getGroupMembers } from '../../services/groups.service';
+import { fetchUsers } from '../../services/users.service';
+import { Input } from '../../components/Input';
+import { Button } from '../../components/Button';
+import { CategoryPicker } from '../../components/CategoryPicker';
+import { SplitTypeSelector } from '../../components/SplitTypeSelector';
+import { MemberSelector } from '../../components/MemberSelector';
+import { LoadingIndicator } from '../../components/LoadingIndicator';
 
 export function AddExpenseScreen() {
     const { t } = useTranslation();
-    const route = useRoute<AddExpenseScreenRouteProp>();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const { groupId } = route.params;
-    const { currentUser } = useAppStore();
-
     const { isLoading, startLoading, stopLoading } = useLoading();
-    const [members, setMembers] = useState<GroupMember[]>([]);
+    const currentUser = useAppStore((state) => state.currentUser);
 
-    // Form state
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [currency, setCurrency] = useState('USD');
     const [category, setCategory] = useState<ExpenseCategory>('other');
-    const [paidBy, setPaidBy] = useState(currentUser?.id || '');
-    const [splitEqually, setSplitEqually] = useState(true);
-    const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+    const [splitType, setSplitType] = useState<'equal' | 'unequal'>('equal');
+    const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+    const [members, setMembers] = useState<GroupMember[]>([]);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [dataLoading, setDataLoading] = useState(true);
+
+    const [descriptionError, setDescriptionError] = useState('');
+    const [amountError, setAmountError] = useState('');
 
     useEffect(() => {
-        loadMembers();
+        const loadData = async () => {
+            const [membersData, usersData] = await Promise.all([
+                getGroupMembers(groupId),
+                fetchUsers(),
+            ]);
+            const activeMembers = membersData.filter((m) => m.isActive);
+            setMembers(activeMembers);
+            setAllUsers(usersData);
+            // Pre-select all members
+            setSelectedMemberIds(activeMembers.map((m) => m.userId));
+            setDataLoading(false);
+        };
+        void loadData();
     }, [groupId]);
 
-    const loadMembers = async () => {
-        startLoading();
-        const membersData = await getGroupMembers(groupId);
-        setMembers(membersData);
-
-        // Pre-select all members for equal split
-        const allMemberIds = new Set(membersData.map(m => m.userId));
-        setSelectedMembers(allMemberIds);
-
-        stopLoading();
+    const getMemberUsers = (): User[] => {
+        return allUsers.filter((u) =>
+            members.some((m) => m.userId === u.id && m.isActive)
+        );
     };
 
-    const toggleMemberSelection = (userId: string) => {
-        const newSelection = new Set(selectedMembers);
-        if (newSelection.has(userId)) {
-            newSelection.delete(userId);
-        } else {
-            newSelection.add(userId);
-        }
-        setSelectedMembers(newSelection);
-    };
+    const validateForm = (): boolean => {
+        let valid = true;
 
-    const handleSubmit = async () => {
-        // Validation
         if (!description.trim()) {
-            alert(t('expenses.description') + ' is required');
-            return;
+            setDescriptionError(t('expenses.descriptionRequired'));
+            valid = false;
+        } else {
+            setDescriptionError('');
         }
 
-        const amountNum = parseFloat(amount);
-        if (isNaN(amountNum) || amountNum <= 0) {
-            alert('Invalid amount');
-            return;
+        const parsedAmount = parseFloat(amount);
+        if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+            setAmountError(t('expenses.invalidAmount'));
+            valid = false;
+        } else {
+            setAmountError('');
         }
 
-        if (selectedMembers.size === 0) {
-            alert('Select at least one member to split with');
-            return;
-        }
+        return valid;
+    };
 
-        startLoading();
+    const handleCreate = async () => {
+        if (!validateForm()) return;
+        if (!currentUser) return;
 
-        // Build splits
-        const splits = Array.from(selectedMembers).map(userId => ({
+        const parsedAmount = parseFloat(amount);
+        const splits: ExpenseSplitInput[] = selectedMemberIds.map((userId) => ({
             userId,
-            // If splitEqually is true, don't specify amount (backend will calculate)
-            // If false, we'd need custom amounts (not implemented in this basic version)
-            ...(splitEqually ? {} : { amount: amountNum / selectedMembers.size }),
+            amount: splitType === 'equal' ? parsedAmount / selectedMemberIds.length : undefined,
         }));
 
-        const dto: CreateExpenseDto = {
+        startLoading();
+        const result = await createExpense({
             groupId,
             description: description.trim(),
-            amount: amountNum,
-            currency,
+            amount: parsedAmount,
+            currency: 'USD', // TODO: use group currency
             category,
-            paidBy,
+            paidBy: currentUser.id,
             splits,
-        };
-
-        const result = await createExpense(dto);
+        });
         stopLoading();
 
         if (result) {
@@ -125,167 +111,86 @@ export function AddExpenseScreen() {
         }
     };
 
-    if (isLoading && members.length === 0) {
+    const handleToggleMember = (userId: string) => {
+        setSelectedMemberIds((prev) =>
+            prev.includes(userId)
+                ? prev.filter((id) => id !== userId)
+                : [...prev, userId]
+        );
+    };
+
+    if (dataLoading) {
         return <LoadingIndicator />;
     }
 
     return (
-        <ScrollView className="flex-1 bg-gray-50">
+        <ScrollView className="flex-1 bg-slate-50">
             <View className="p-4">
                 {/* Description */}
-                <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
-                        {t('expenses.description')} *
-                    </Text>
-                    <TextInput
-                        value={description}
-                        onChangeText={setDescription}
-                        placeholder="e.g., Dinner at restaurant"
-                        className="bg-white p-3 rounded-lg border border-gray-300"
-                    />
-                </View>
+                <Input
+                    label={t('expenses.description')}
+                    placeholder={t('expenses.enterDescription')}
+                    value={description}
+                    onChangeText={(text) => {
+                        setDescription(text);
+                        if (descriptionError) setDescriptionError('');
+                    }}
+                    error={descriptionError}
+                />
 
                 {/* Amount */}
-                <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
-                        {t('expenses.amount')} *
-                    </Text>
-                    <View className="flex-row">
-                        <TextInput
-                            value={amount}
-                            onChangeText={setAmount}
-                            placeholder="0.00"
-                            keyboardType="decimal-pad"
-                            className="flex-1 bg-white p-3 rounded-lg border border-gray-300 mr-2"
-                        />
-                        <View className="w-24">
-                            <CurrencyPicker
-                                value={currency}
-                                onChange={setCurrency}
-                            />
-                        </View>
-                    </View>
-                </View>
+                <Input
+                    label={t('expenses.amount')}
+                    placeholder="0.00"
+                    value={amount}
+                    onChangeText={(text) => {
+                        setAmount(text);
+                        if (amountError) setAmountError('');
+                    }}
+                    error={amountError}
+                    keyboardType="decimal-pad"
+                />
 
                 {/* Category */}
-                <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
-                        {t('expenses.category')}
-                    </Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View className="flex-row">
-                            {EXPENSE_CATEGORIES.map((cat) => (
-                                <TouchableOpacity
-                                    key={cat}
-                                    onPress={() => setCategory(cat)}
-                                    className="px-4 py-2 rounded-full mr-2"
-                                    style={{
-                                        backgroundColor: category === cat ? colors.primary : colors.gray200,
-                                    }}
-                                >
-                                    <Text
-                                        className="font-medium"
-                                        style={{
-                                            color: category === cat ? 'white' : colors.gray700,
-                                        }}
-                                    >
-                                        {cat}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </ScrollView>
-                </View>
+                <CategoryPicker
+                    value={category}
+                    onChange={setCategory}
+                    label={t('expenses.category')}
+                />
 
-                {/* Paid By */}
-                <View className="mb-4">
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
-                        {t('history.paidBy')} *
-                    </Text>
-                    <View className="bg-white rounded-lg border border-gray-300">
-                        {members.map((member) => (
-                            <TouchableOpacity
-                                key={member.userId}
-                                onPress={() => setPaidBy(member.userId)}
-                                className="flex-row items-center p-3 border-b border-gray-200"
-                            >
-                                <View
-                                    className="w-5 h-5 rounded-full border-2 mr-3 items-center justify-center"
-                                    style={{
-                                        borderColor: paidBy === member.userId ? colors.primary : colors.gray400,
-                                    }}
-                                >
-                                    {paidBy === member.userId && (
-                                        <View
-                                            className="w-3 h-3 rounded-full"
-                                            style={{ backgroundColor: colors.primary }}
-                                        />
-                                    )}
-                                </View>
-                                <Text className="text-gray-900">{member.userId}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
+                {/* Split Type */}
+                <SplitTypeSelector
+                    value={splitType}
+                    onChange={setSplitType}
+                    label={t('expenses.splitType')}
+                />
 
-                {/* Split Options */}
-                <View className="mb-4">
-                    <View className="flex-row justify-between items-center mb-3">
-                        <Text className="text-sm font-semibold text-gray-700">
-                            Split Equally
+                {/* Split Between */}
+                <MemberSelector
+                    members={getMemberUsers()}
+                    selectedIds={selectedMemberIds}
+                    onToggle={handleToggleMember}
+                    label={t('expenses.splitBetween')}
+                />
+
+                {/* Equal Split Preview */}
+                {splitType === 'equal' && selectedMemberIds.length > 0 && amount && (
+                    <View className="bg-primary-extra-light rounded-xl p-4 mb-4">
+                        <Text className="text-sm text-primary-dark text-center">
+                            {t('expenses.eachPays')}: ${(parseFloat(amount) / selectedMemberIds.length).toFixed(2)}
                         </Text>
-                        <Switch
-                            value={splitEqually}
-                            onValueChange={setSplitEqually}
-                            trackColor={{ false: colors.gray300, true: colors.primaryLight }}
-                            thumbColor={splitEqually ? colors.primary : colors.gray400}
-                        />
                     </View>
+                )}
 
-                    <Text className="text-sm font-semibold text-gray-700 mb-2">
-                        {t('history.splitBetween')} *
-                    </Text>
-                    <View className="bg-white rounded-lg border border-gray-300">
-                        {members.map((member) => (
-                            <TouchableOpacity
-                                key={member.userId}
-                                onPress={() => toggleMemberSelection(member.userId)}
-                                className="flex-row items-center p-3 border-b border-gray-200"
-                            >
-                                <View
-                                    className="w-5 h-5 rounded border-2 mr-3 items-center justify-center"
-                                    style={{
-                                        borderColor: selectedMembers.has(member.userId)
-                                            ? colors.primary
-                                            : colors.gray400,
-                                        backgroundColor: selectedMembers.has(member.userId)
-                                            ? colors.primary
-                                            : 'transparent',
-                                    }}
-                                >
-                                    {selectedMembers.has(member.userId) && (
-                                        <Text className="text-white text-xs">✓</Text>
-                                    )}
-                                </View>
-                                <Text className="text-gray-900">{member.userId}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                {/* Create Button */}
+                <View className="mt-4">
+                    <Button
+                        title={t('expenses.addExpense')}
+                        onPress={handleCreate}
+                        loading={isLoading}
+                        disabled={isLoading}
+                    />
                 </View>
-
-                {/* Submit Button */}
-                <TouchableOpacity
-                    onPress={handleSubmit}
-                    disabled={isLoading}
-                    className="p-4 rounded-lg mt-4"
-                    style={{
-                        backgroundColor: isLoading ? colors.gray400 : colors.primary,
-                    }}
-                >
-                    <Text className="text-white text-center font-bold text-lg">
-                        {isLoading ? t('common.loading') : t('expenses.addExpense')}
-                    </Text>
-                </TouchableOpacity>
             </View>
         </ScrollView>
     );
