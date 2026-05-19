@@ -2,12 +2,17 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
 const mockNavigate = jest.fn();
+const mockSetOptions = jest.fn();
 
 jest.mock('@react-navigation/native', () => {
     const actual = jest.requireActual('@react-navigation/native');
     return {
         ...actual,
-        useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn() }),
+        useNavigation: () => ({
+            navigate: mockNavigate,
+            goBack: jest.fn(),
+            setOptions: mockSetOptions,
+        }),
         useRoute: () => ({ params: {} }),
         useFocusEffect: (cb: () => void) => cb(),
         useIsFocused: () => true,
@@ -24,13 +29,10 @@ jest.mock('../../../i18n', () => ({
 
 import { ProfileScreen } from '../../../screens/profile/ProfileScreen';
 import { useAppStore } from '../../../store';
-import { changeLanguage } from '../../../i18n';
-
-const mockChangeLanguage = changeLanguage as jest.MockedFunction<typeof changeLanguage>;
 
 beforeEach(() => {
     mockNavigate.mockClear();
-    mockChangeLanguage.mockClear();
+    mockSetOptions.mockClear();
     useAppStore.setState({
         language: 'en',
         currentUser: {
@@ -52,10 +54,12 @@ describe('ProfileScreen', () => {
         expect(getByText('a@x.com')).toBeTruthy();
     });
 
-    it('calls changeLanguage when a language button is pressed', () => {
-        const { getByText } = render(<ProfileScreen />);
-        fireEvent.press(getByText('profile.hebrew'));
-        expect(mockChangeLanguage).toHaveBeenCalledWith('he');
+    it('sets header settings button that navigates to Settings', () => {
+        render(<ProfileScreen />);
+        const headerRight = mockSetOptions.mock.calls[0][0].headerRight;
+        const { getByTestId } = render(headerRight());
+        fireEvent.press(getByTestId('profile-settings-button'));
+        expect(mockNavigate).toHaveBeenCalledWith('Settings');
     });
 
     it('navigates to EditProfile on edit press', () => {

@@ -7,6 +7,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { RecentActivity } from '@cost-share/shared';
+import { AppIcon, AppIconName } from './AppIcon';
+import { colors } from '../theme';
 
 interface ActivityItemProps {
     activity: RecentActivity;
@@ -16,7 +18,8 @@ interface ActivityItemProps {
 export function ActivityItem({ activity, onPress }: ActivityItemProps) {
     const isExpense = activity.activityType === 'expense';
     const formattedDate = new Date(activity.activityDate).toLocaleDateString();
-    const icon = isExpense ? '💰' : '🤝';
+    const iconName: AppIconName = isExpense ? 'cash-outline' : 'swap-horizontal-outline';
+    const iconColor = isExpense ? colors.primary : colors.success;
 
     return (
         <TouchableOpacity
@@ -26,9 +29,17 @@ export function ActivityItem({ activity, onPress }: ActivityItemProps) {
         >
             <View className="flex-row items-center">
                 {/* Activity Type Icon */}
-                <View className={`w-10 h-10 rounded-lg justify-center items-center mr-3 ${isExpense ? 'bg-blue-50' : 'bg-green-50'
-                    }`}>
-                    <Text className="text-lg">{icon}</Text>
+                <View
+                    className={`w-10 h-10 rounded-lg justify-center items-center mr-3 ${
+                        isExpense ? 'bg-blue-50' : 'bg-green-50'
+                    }`}
+                >
+                    <AppIcon
+                        name={iconName}
+                        size={22}
+                        color={iconColor}
+                        testID={`activity-icon-${activity.activityType}`}
+                    />
                 </View>
 
                 {/* Activity Info */}

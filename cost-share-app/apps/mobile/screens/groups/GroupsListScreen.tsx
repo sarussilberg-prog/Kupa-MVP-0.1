@@ -83,7 +83,7 @@ export function GroupsListScreen() {
                 }
                 ListEmptyComponent={
                     <EmptyState
-                        icon="👥"
+                        iconName="people-outline"
                         title={t('groups.noGroups')}
                         message={t('groups.noGroupsMessage')}
                         actionTitle={t('groups.createGroup')}

@@ -47,4 +47,14 @@ describe('GroupCard', () => {
         fireEvent.press(getByText('Trip to Paris'));
         expect(onPress).toHaveBeenCalledWith('g1');
     });
+
+    it('renders group image when imageUrl is provided', () => {
+        const { getByTestId } = render(
+            <GroupCard
+                group={{ ...baseGroup, imageUrl: 'https://example.com/group.jpg' }}
+                onPress={() => {}}
+            />
+        );
+        expect(getByTestId('group-avatar-image')).toBeTruthy();
+    });
 });

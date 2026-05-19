@@ -20,6 +20,16 @@ jest.mock('../../../services/groups.service', () => ({
     updateGroup: jest.fn(),
 }));
 
+jest.mock('../../../services/storage.service', () => ({
+    uploadGroupImage: jest.fn(),
+}));
+
+jest.mock('expo-image-picker', () => ({
+    requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+    launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),
+    MediaTypeOptions: { Images: 'images' },
+}));
+
 import { EditGroupScreen } from '../../../screens/groups/EditGroupScreen';
 import {
     getGroupById,

@@ -30,6 +30,7 @@ import { ExpenseCard } from '../../components/ExpenseCard';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { GroupAvatar } from '../../components/GroupAvatar';
 import { colors } from '../../theme';
 
 export function GroupDetailScreen() {
@@ -117,7 +118,7 @@ export function GroupDetailScreen() {
     if (!group) {
         return (
             <EmptyState
-                icon="❌"
+                iconName="alert-circle-outline"
                 title={t('common.error')}
                 message={t('common.loadError')}
             />
@@ -141,10 +142,21 @@ export function GroupDetailScreen() {
         >
             {/* Group Header */}
             <View className="bg-white px-4 py-5 mb-4">
-                <Text className="text-2xl font-bold text-gray-900">{group.name}</Text>
-                {group.description && (
-                    <Text className="text-sm text-gray-500 mt-1">{group.description}</Text>
-                )}
+                <View className="flex-row items-center">
+                    <View className="mr-3">
+                        <GroupAvatar
+                            imageUrl={group.imageUrl}
+                            groupType={group.groupType}
+                            size="md"
+                        />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="text-2xl font-bold text-gray-900">{group.name}</Text>
+                        {group.description && (
+                            <Text className="text-sm text-gray-500 mt-1">{group.description}</Text>
+                        )}
+                    </View>
+                </View>
             </View>
 
             {/* Stats */}

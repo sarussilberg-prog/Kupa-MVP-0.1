@@ -6,6 +6,8 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
+import { AppIcon } from '../../components/AppIcon';
+import { colors } from '../../theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useLoading } from '../../hooks/useLoading';
@@ -43,7 +45,7 @@ export function LoginScreen() {
             <View className="flex-1 justify-center items-center px-8">
                 {/* App Icon / Branding */}
                 <View className="w-20 h-20 rounded-2xl bg-primary-extra-light justify-center items-center mb-6">
-                    <Text className="text-4xl">💰</Text>
+                    <AppIcon name="wallet" size={40} color={colors.primary} />
                 </View>
 
                 {/* App Name */}

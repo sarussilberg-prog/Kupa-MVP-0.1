@@ -6,10 +6,12 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
+import { AppIcon, AppIconName } from './AppIcon';
 import { Button } from './Button';
+import { colors } from '../theme';
 
 interface EmptyStateProps {
-    icon?: string;
+    iconName?: AppIconName;
     title: string;
     message?: string;
     actionTitle?: string;
@@ -17,7 +19,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-    icon,
+    iconName,
     title,
     message,
     actionTitle,
@@ -25,8 +27,15 @@ export function EmptyState({
 }: EmptyStateProps) {
     return (
         <View className="flex-1 justify-center items-center px-8 py-12">
-            {icon && (
-                <Text className="text-5xl mb-4">{icon}</Text>
+            {iconName && (
+                <View className="mb-4">
+                    <AppIcon
+                        name={iconName}
+                        size={56}
+                        color={colors.gray300}
+                        testID="empty-state-icon"
+                    />
+                </View>
             )}
             <Text className="text-xl font-semibold text-gray-800 text-center mb-2">
                 {title}

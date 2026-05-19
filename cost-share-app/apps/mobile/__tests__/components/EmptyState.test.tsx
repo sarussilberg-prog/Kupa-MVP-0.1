@@ -12,10 +12,10 @@ describe('EmptyState', () => {
     });
 
     it('renders the icon when provided', () => {
-        const { getByText } = render(
-            <EmptyState icon="👥" title="Empty" />
+        const { getByTestId } = render(
+            <EmptyState iconName="people-outline" title="Empty" />
         );
-        expect(getByText('👥')).toBeTruthy();
+        expect(getByTestId('empty-state-icon')).toBeTruthy();
     });
 
     it('renders the action button and triggers onAction when pressed', () => {

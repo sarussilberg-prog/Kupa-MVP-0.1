@@ -1,5 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+    // NativeWind web syncs color scheme via class on <html>; "media" throws on manual set.
+    darkMode: 'class',
     content: [
         './App.{js,jsx,ts,tsx}',
         './src/**/*.{js,jsx,ts,tsx}',

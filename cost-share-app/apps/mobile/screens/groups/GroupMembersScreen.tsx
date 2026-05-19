@@ -100,7 +100,7 @@ export function GroupMembersScreen() {
                 contentContainerClassName="p-4"
                 ListEmptyComponent={
                     <EmptyState
-                        icon="👤"
+                        iconName="person-outline"
                         title={t('groups.noMembers')}
                     />
                 }

@@ -8,6 +8,9 @@
     ],
     "scripts": {
         "dev": "turbo run dev",
+        "dev:start": "bash scripts/dev-start.sh",
+        "dev:check": "bash scripts/dev-start.sh --check-only",
+        "dev:web": "bash scripts/dev-start.sh --web-only",
         "build": "turbo run build",
         "lint": "turbo run lint",
         "clean": "turbo run clean",

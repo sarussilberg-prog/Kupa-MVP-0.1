@@ -1,53 +1,42 @@
 /**
  * ProfileScreen
- * User profile with language toggle and logout
+ * User profile with edit action and link to settings
  * Uses NativeWind styling only, full i18n support
  */
 
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import React, { useCallback, useLayoutEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../../store';
-import { signOut } from '../../services/auth.service';
-import { changeLanguage } from '../../i18n';
 import { MemberAvatar } from '../../components/MemberAvatar';
+import { AppIcon } from '../../components/AppIcon';
 import { Button } from '../../components/Button';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { colors } from '../../theme';
 
 export function ProfileScreen() {
     const { t } = useTranslation();
     const navigation = useNavigation<any>();
     const currentUser = useAppStore((state) => state.currentUser);
-    const language = useAppStore((state) => state.language);
-    const setLanguage = useAppStore((state) => state.setLanguage);
 
-    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const handleOpenSettings = useCallback(() => {
+        navigation.navigate('Settings');
+    }, [navigation]);
 
-    const handleLanguageChange = useCallback(
-        async (lang: 'en' | 'he') => {
-            try {
-                const needsRestart = await changeLanguage(lang);
-                setLanguage(lang);
-
-                if (needsRestart) {
-                    Alert.alert(
-                        t('profile.restartRequired'),
-                        t('profile.restartMessage'),
-                        [{ text: t('common.ok') }]
-                    );
-                }
-            } catch {
-                Alert.alert(t('common.error'), t('profile.languageChangeError'));
-            }
-        },
-        [setLanguage, t]
-    );
-
-    const handleLogout = useCallback(async () => {
-        setShowLogoutDialog(false);
-        await signOut();
-    }, []);
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={handleOpenSettings}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    testID="profile-settings-button"
+                    className="mr-2"
+                >
+                    <AppIcon name="settings-outline" size={24} color={colors.primary} />
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation, handleOpenSettings]);
 
     const handleEditProfile = useCallback(() => {
         navigation.navigate('EditProfile');
@@ -70,29 +59,6 @@ export function ProfileScreen() {
                 </Text>
             </View>
 
-            {/* Language Settings */}
-            <View className="px-4 mb-4">
-                <Text className="text-lg font-semibold text-gray-900 mb-3">
-                    {t('profile.language')}
-                </Text>
-                <View className="flex-row gap-3">
-                    <View className="flex-1">
-                        <Button
-                            title={t('profile.english')}
-                            onPress={() => handleLanguageChange('en')}
-                            variant={language === 'en' ? 'primary' : 'outline'}
-                        />
-                    </View>
-                    <View className="flex-1">
-                        <Button
-                            title={t('profile.hebrew')}
-                            onPress={() => handleLanguageChange('he')}
-                            variant={language === 'he' ? 'primary' : 'outline'}
-                        />
-                    </View>
-                </View>
-            </View>
-
             {/* Actions */}
             <View className="px-4 mb-8 gap-2">
                 <Button
@@ -100,24 +66,7 @@ export function ProfileScreen() {
                     onPress={handleEditProfile}
                     variant="outline"
                 />
-                <Button
-                    title={t('profile.logout')}
-                    onPress={() => setShowLogoutDialog(true)}
-                    variant="danger"
-                />
             </View>
-
-            {/* Logout Confirmation */}
-            <ConfirmDialog
-                visible={showLogoutDialog}
-                title={t('profile.logout')}
-                message={t('profile.logoutConfirm')}
-                confirmText={t('profile.logout')}
-                cancelText={t('common.cancel')}
-                onConfirm={handleLogout}
-                onCancel={() => setShowLogoutDialog(false)}
-                destructive
-            />
         </ScrollView>
     );
 }

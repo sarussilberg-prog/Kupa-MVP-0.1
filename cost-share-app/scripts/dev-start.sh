@@ -134,10 +134,17 @@ free_metro_ports() {
   done
 }
 
+# Free API/web/metro from a previous dev-start (Ctrl+C does not always stop background PIDs).
+free_dev_stack_ports() {
+  free_port "$API_PORT"
+  free_port "$WEB_PORT"
+  free_metro_ports
+}
+
 require_free_port() {
   local port="$1" label="$2"
   if port_in_use "$port"; then
-    fail "$label port $port is already in use. Stop the other process or change the port."
+    fail "$label port $port is still in use after cleanup. Stop the other process or change the port."
   fi
 }
 
@@ -289,6 +296,7 @@ wait_for_port() {
 }
 
 start_background_stack() {
+  free_dev_stack_ports
   require_free_port "$API_PORT" "API"
   require_free_port "$WEB_PORT" "Web"
 
@@ -307,14 +315,12 @@ start_background_stack() {
 }
 
 start_expo_foreground() {
-  free_metro_ports
-
   echo ""
   echo "══════════════════════════════════════════"
   echo "  Expo — interactive (this terminal)"
   echo "══════════════════════════════════════════"
   echo "  w → web  |  a → Android  |  i → iOS simulator"
-  echo "  iOS stuck? → press r, or: npm run ios:open -w @cost-share/mobile"
+  echo "  iOS blank after i? → auto-reload runs; manual: npm run ios:open -w @cost-share/mobile"
   echo "  Metro: exp://127.0.0.1:8081"
   echo "  API: http://localhost:${API_PORT}/api  |  Web: http://localhost:${WEB_PORT}"
   echo "  Ctrl+C stops Expo and background services"

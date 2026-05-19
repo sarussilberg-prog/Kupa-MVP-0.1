@@ -106,7 +106,7 @@ export function SettlementHistoryScreen() {
                 }
                 ListEmptyComponent={
                     <EmptyState
-                        icon="🤝"
+                        iconName="swap-horizontal-outline"
                         title={t('balances.noSettlements')}
                         message={t('balances.noSettlementsMessage')}
                     />

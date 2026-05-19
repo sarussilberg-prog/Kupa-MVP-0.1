@@ -95,7 +95,7 @@ export function ActivityFeedScreen() {
                 }
                 ListEmptyComponent={
                     <EmptyState
-                        icon="📋"
+                        iconName="list-outline"
                         title={t('activity.noActivity')}
                         message={t('activity.noActivityMessage')}
                     />
