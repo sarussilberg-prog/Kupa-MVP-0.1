@@ -31,7 +31,7 @@ cost-share-app/
 ### Backend (Server)
 - **NestJS** (enterprise-grade Node.js framework)
 - **TypeScript** (strict mode)
-- **In-memory mock data** (NO database - ready for future migration)
+- **Supabase Postgres** via NestJS API (service role + JWT auth on requests)
 
 ### Shared
 - **TypeScript** types shared between frontend and backend
@@ -95,6 +95,15 @@ cp apps/web/.env.example apps/web/.env.local
 # Fill keys from Supabase → Project Settings → API
 # Enable Google provider + redirect URLs (documented in .env.example files)
 ```
+
+3. **Apply database schema and seed (one-time):**
+   - Paste `apps/server/db/schema.sql` into Supabase SQL Editor → Run
+   - `cd apps/server && npm run seed` (optional dev data)
+   - Verify: `bash scripts/verify-supabase-schema.sh`
+
+4. **Mobile API URL (physical device / Expo Go):**
+   - Set `EXPO_PUBLIC_API_URL=http://<YOUR_MAC_LAN_IP>:3000/api` in `apps/mobile/.env`
+   - `dev-start.sh` prints the suggested value on boot
 
 ### Running the Project
 
@@ -242,7 +251,7 @@ This project follows production-grade patterns even though it uses mock data:
 
 ## 🔄 Future Enhancements
 
-- [ ] Migrate to Supabase database
+- [x] Migrate to Supabase database
 - [x] Add authentication (Google via Supabase — mobile + web)
 - [ ] Implement offline support
 - [ ] Add expense splitting logic

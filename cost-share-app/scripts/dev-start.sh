@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Kupa dev launcher — preflight (non-interactive), then API + web in background + Expo in foreground.
 #
-# Usage (bash or npm run dev:start — not `sh`):
-#   ./scripts/dev-start.sh              # checks + server + web + Expo (w/a/i in this terminal)
-#   ./scripts/dev-start.sh --web-only   # no Expo
-#   ./scripts/dev-start.sh --skip-tests # faster re-run
-#   ./scripts/dev-start.sh --check-only
+# Usage (bash or npm run dev:start — safe from any cwd; not `sh`):
+#   /path/to/cost-share-app/scripts/dev-start.sh
+#   /path/to/cost-share-app/scripts/dev-start.sh --web-only
+#   /path/to/cost-share-app/scripts/dev-start.sh --skip-tests
+#   /path/to/cost-share-app/scripts/dev-start.sh --check-only
 #
 # Env: WEB_PORT=3001  API_PORT=3000
 
@@ -19,8 +19,21 @@ export CI=1
 export npm_config_yes=true
 export npm_config_loglevel=error
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
+
+SERVER_DIR="$ROOT_DIR/apps/server"
+WEB_DIR="$ROOT_DIR/apps/web"
+MOBILE_DIR="$ROOT_DIR/apps/mobile"
+SHARED_DIR="$ROOT_DIR/packages/shared"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+
+SERVER_ENV="$SERVER_DIR/.env"
+WEB_ENV="$WEB_DIR/.env.local"
+MOBILE_ENV="$MOBILE_DIR/.env"
+VERIFY_SCHEMA_SH="$SCRIPTS_DIR/verify-supabase-schema.sh"
+SCHEMA_SQL="$SERVER_DIR/db/schema.sql"
 
 WEB_PORT="${WEB_PORT:-3001}"
 API_PORT="${API_PORT:-3000}"
@@ -69,9 +82,9 @@ if [[ "$WEB_ONLY" == true ]]; then
 fi
 
 load_api_port() {
-  if [[ -f apps/server/.env ]]; then
+  if [[ -f "$SERVER_ENV" ]]; then
     local p
-    p="$(grep -E '^PORT=' apps/server/.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' "' || true)"
+    p="$(grep -E '^PORT=' "$SERVER_ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d ' "' || true)"
     [[ -n "$p" ]] && API_PORT="$p"
   fi
 }
@@ -139,9 +152,9 @@ check_node() {
 
 check_dependencies() {
   log "Checking dependencies..."
-  if [[ "$FORCE_INSTALL" == true ]] || [[ ! -d node_modules/@types/jest ]]; then
+  if [[ "$FORCE_INSTALL" == true ]] || [[ ! -d "$ROOT_DIR/node_modules/@types/jest" ]]; then
     warn "Installing dependencies (npm install)..."
-    npm install --no-fund --no-audit
+    (cd "$ROOT_DIR" && npm install --no-fund --no-audit)
   fi
   ok "node_modules ready"
 }
@@ -189,12 +202,12 @@ check_env_file() {
 
 check_env() {
   load_api_port
-  check_env_file "Server" "apps/server/.env" \
+  check_env_file "Server" "$SERVER_ENV" \
     SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY
-  check_env_file "Web" "apps/web/.env.local" \
+  check_env_file "Web" "$WEB_ENV" \
     NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   if [[ "$WITH_MOBILE" == true ]]; then
-    check_env_file "Mobile" "apps/mobile/.env" \
+    check_env_file "Mobile" "$MOBILE_ENV" \
       EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY
   fi
 }
@@ -207,20 +220,20 @@ run_tsc() {
 }
 
 check_typescript() {
-  run_tsc "shared" "packages/shared"
-  run_tsc "server" "apps/server"
-  run_tsc "web" "apps/web"
+  run_tsc "shared" "$SHARED_DIR"
+  run_tsc "server" "$SERVER_DIR"
+  run_tsc "web" "$WEB_DIR"
 }
 
 check_shared_build() {
   log "Building @cost-share/shared..."
-  npm run build -w @cost-share/shared --silent
+  (cd "$ROOT_DIR" && npm run build -w @cost-share/shared --silent)
   ok "Shared package build"
 }
 
 check_tests() {
   log "Running mobile unit tests (Jest)..."
-  npm test -w @cost-share/mobile -- --ci --passWithNoTests --silent
+  (cd "$ROOT_DIR" && npm test -w @cost-share/mobile -- --ci --passWithNoTests --silent)
   ok "Mobile tests passed"
 }
 
@@ -235,7 +248,7 @@ run_checks() {
   check_dependencies
   check_env
   log "Checking Supabase schema..."
-  bash "$ROOT_DIR/scripts/verify-supabase-schema.sh"
+  bash "$VERIFY_SCHEMA_SH"
   ok "Supabase schema"
   check_typescript
   check_shared_build
@@ -254,7 +267,7 @@ start_bg() {
   local name="$1"
   shift
   mkdir -p "$LOG_DIR"
-  "$@" >"$LOG_DIR/${name}.log" 2>&1 &
+  (cd "$ROOT_DIR" && "$@") >"$LOG_DIR/${name}.log" 2>&1 &
   local pid=$!
   PIDS+=("$pid")
   echo "  → $name  PID $pid  log: $LOG_DIR/${name}.log"
@@ -310,7 +323,7 @@ start_expo_foreground() {
   # Foreground + TTY so w/a/i work; CI=1 only for preflight, not Expo UI.
   unset CI
   export EXPO_METRO_PORT=8081
-  cd "$ROOT_DIR/apps/mobile"
+  cd "$MOBILE_DIR"
   npm run start
 }
 
@@ -321,6 +334,10 @@ start_services() {
   echo ""
   echo "  API:  http://localhost:${API_PORT}/api"
   echo "  Web:  http://localhost:${WEB_PORT}"
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
+  if [[ -n "$LAN_IP" ]]; then
+    echo "  Mobile API (set EXPO_PUBLIC_API_URL): http://${LAN_IP}:${API_PORT}/api"
+  fi
   if [[ "$WITH_MOBILE" == true ]]; then
     echo "  Expo: interactive below (Metro ~8081)"
   else
