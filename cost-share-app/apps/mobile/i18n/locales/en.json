@@ -63,6 +63,11 @@
         "restartMessage": "Please close and reopen the app for the language change to take full effect.",
         "languageChangeError": "Failed to change language. Please try again."
     },
+    "auth": {
+        "signInWithGoogle": "Continue with Google",
+        "subtitle": "Split expenses with friends",
+        "signInError": "Sign in failed. Please try again."
+    },
     "expenses": {
         "addExpense": "Add Expense",
         "description": "Description",

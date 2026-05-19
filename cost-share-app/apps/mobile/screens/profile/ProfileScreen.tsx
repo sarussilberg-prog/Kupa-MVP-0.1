@@ -9,6 +9,7 @@ import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-na
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
 import { changeLanguage } from '../../i18n';
+import { signOut } from '../../services/auth.service';
 
 export function ProfileScreen() {
     const { t } = useTranslation();
@@ -55,7 +56,7 @@ export function ProfileScreen() {
             t('profile.logoutConfirm'),
             [
                 { text: t('common.cancel'), style: 'cancel' },
-                { text: t('profile.logout'), onPress: () => console.log('Logout') },
+                { text: t('profile.logout'), onPress: () => void signOut() },
             ]
         );
     };
