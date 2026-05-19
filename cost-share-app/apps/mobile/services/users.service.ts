@@ -4,7 +4,7 @@
  * ALL user mutations must go through this service
  */
 
-import { User, UpdateUserDto, ApiResponse } from '@cost-share/shared';
+import { User, UpdateProfileDto, ApiResponse } from '@cost-share/shared';
 import { apiGet, apiPut } from './api';
 import { useAppStore } from '../store';
 
@@ -38,7 +38,7 @@ export async function getUserById(id: string): Promise<User | null> {
  * Update user
  * This is the ONLY way to update a user from the UI
  */
-export async function updateUser(id: string, dto: UpdateUserDto): Promise<User | null> {
+export async function updateUser(id: string, dto: UpdateProfileDto): Promise<User | null> {
     const response = await apiPut<User>(`/users/${id}`, dto);
 
     if (response.success && response.data) {

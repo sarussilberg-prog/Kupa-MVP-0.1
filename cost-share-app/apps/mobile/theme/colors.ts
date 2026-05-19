@@ -2,19 +2,22 @@
  * Theme Colors
  * Centralized color definitions for consistent styling
  * Use these constants instead of hardcoded colors
+ * 
+ * Light blue primary theme — clean, airy, and gentle
  */
 
 export const colors = {
-    // Primary Brand Colors
-    primary: '#3B82F6',      // Blue 500
-    primaryDark: '#2563EB',  // Blue 600
-    primaryLight: '#60A5FA', // Blue 400
+    // Primary Brand Colors (Light Blue Palette)
+    primary: '#60A5FA',          // Blue 400 — soft light blue
+    primaryDark: '#3B82F6',      // Blue 500 — for pressed/active states
+    primaryLight: '#93C5FD',     // Blue 300 — for backgrounds, tints
+    primaryExtraLight: '#DBEAFE', // Blue 100 — for subtle highlights, card accents
 
     // Semantic Colors
     success: '#10B981',      // Green 500
     warning: '#F59E0B',      // Amber 500
     error: '#EF4444',        // Red 500
-    info: '#3B82F6',         // Blue 500
+    info: '#60A5FA',         // Blue 400
 
     // Neutral Colors
     white: '#FFFFFF',
@@ -35,7 +38,7 @@ export const colors = {
     // Background Colors
     background: {
         primary: '#FFFFFF',
-        secondary: '#F9FAFB',
+        secondary: '#F8FAFC',
         tertiary: '#F3F4F6',
     },
 

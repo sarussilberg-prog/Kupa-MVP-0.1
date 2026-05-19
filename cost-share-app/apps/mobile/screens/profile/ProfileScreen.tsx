@@ -1,118 +1,123 @@
 /**
  * ProfileScreen
  * User profile with language toggle and logout
- * NO business logic - only UI composition
+ * Uses NativeWind styling only, full i18n support
  */
 
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../../store';
-import { changeLanguage } from '../../i18n';
 import { signOut } from '../../services/auth.service';
+import { changeLanguage } from '../../i18n';
+import { MemberAvatar } from '../../components/MemberAvatar';
+import { Button } from '../../components/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 export function ProfileScreen() {
     const { t } = useTranslation();
-    const { currentUser, language, setLanguage } = useAppStore();
-    const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+    const navigation = useNavigation<any>();
+    const currentUser = useAppStore((state) => state.currentUser);
+    const language = useAppStore((state) => state.language);
+    const setLanguage = useAppStore((state) => state.setLanguage);
 
-    const handleLanguageChange = async (newLanguage: 'en' | 'he') => {
-        if (newLanguage === language) return; // Already selected
+    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-        setIsChangingLanguage(true);
+    const handleLanguageChange = useCallback(
+        async (lang: 'en' | 'he') => {
+            try {
+                const needsRestart = await changeLanguage(lang);
+                setLanguage(lang);
 
-        try {
-            const needsRestart = await changeLanguage(newLanguage);
-            setLanguage(newLanguage);
-
-            // Show restart prompt if RTL changed
-            if (needsRestart) {
-                Alert.alert(
-                    t('profile.restartRequired'),
-                    t('profile.restartMessage'),
-                    [
-                        {
-                            text: t('common.ok'),
-                            onPress: () => console.log('User acknowledged restart needed'),
-                        },
-                    ]
-                );
+                if (needsRestart) {
+                    Alert.alert(
+                        t('profile.restartRequired'),
+                        t('profile.restartMessage'),
+                        [{ text: t('common.ok') }]
+                    );
+                }
+            } catch {
+                Alert.alert(t('common.error'), t('profile.languageChangeError'));
             }
-        } catch (error) {
-            console.error('Failed to change language:', error);
-            Alert.alert(
-                t('common.error'),
-                t('profile.languageChangeError'),
-                [{ text: t('common.ok') }]
-            );
-        } finally {
-            setIsChangingLanguage(false);
-        }
-    };
+        },
+        [setLanguage, t]
+    );
 
-    const handleLogout = () => {
-        Alert.alert(
-            t('profile.logout'),
-            t('profile.logoutConfirm'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                { text: t('profile.logout'), onPress: () => void signOut() },
-            ]
-        );
-    };
+    const handleLogout = useCallback(async () => {
+        setShowLogoutDialog(false);
+        await signOut();
+    }, []);
+
+    const handleEditProfile = useCallback(() => {
+        navigation.navigate('EditProfile');
+    }, [navigation]);
 
     return (
-        <View className="flex-1 bg-gray-50 p-4">
-            {/* User Info */}
-            <View className="bg-white p-6 rounded-lg shadow mb-4">
-                <Text className="text-2xl font-bold mb-2">
-                    {currentUser?.name || 'Guest User'}
+        <ScrollView className="flex-1 bg-slate-50">
+            {/* Profile Header */}
+            <View className="bg-white px-4 py-8 items-center mb-4">
+                <MemberAvatar
+                    name={currentUser?.name || '?'}
+                    avatarUrl={currentUser?.avatarUrl}
+                    size="lg"
+                />
+                <Text className="text-xl font-bold text-gray-900 mt-3">
+                    {currentUser?.name || t('common.unknown')}
                 </Text>
-                <Text className="text-gray-600">
-                    {currentUser?.email || 'guest@example.com'}
+                <Text className="text-sm text-gray-500 mt-1">
+                    {currentUser?.email || ''}
                 </Text>
             </View>
 
-            {/* Language Selection */}
-            <View className="bg-white p-4 rounded-lg shadow mb-4">
-                <Text className="text-lg font-bold mb-4">{t('profile.language')}</Text>
-
-                <TouchableOpacity
-                    onPress={() => handleLanguageChange('en')}
-                    className={`p-4 rounded-lg mb-2 ${language === 'en' ? 'bg-blue-500' : 'bg-gray-200'
-                        }`}
-                >
-                    <Text
-                        className={`text-center font-bold ${language === 'en' ? 'text-white' : 'text-gray-700'
-                            }`}
-                    >
-                        {t('profile.english')}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => handleLanguageChange('he')}
-                    className={`p-4 rounded-lg ${language === 'he' ? 'bg-blue-500' : 'bg-gray-200'
-                        }`}
-                >
-                    <Text
-                        className={`text-center font-bold ${language === 'he' ? 'text-white' : 'text-gray-700'
-                            }`}
-                    >
-                        {t('profile.hebrew')}
-                    </Text>
-                </TouchableOpacity>
+            {/* Language Settings */}
+            <View className="px-4 mb-4">
+                <Text className="text-lg font-semibold text-gray-900 mb-3">
+                    {t('profile.language')}
+                </Text>
+                <View className="flex-row gap-3">
+                    <View className="flex-1">
+                        <Button
+                            title={t('profile.english')}
+                            onPress={() => handleLanguageChange('en')}
+                            variant={language === 'en' ? 'primary' : 'outline'}
+                        />
+                    </View>
+                    <View className="flex-1">
+                        <Button
+                            title={t('profile.hebrew')}
+                            onPress={() => handleLanguageChange('he')}
+                            variant={language === 'he' ? 'primary' : 'outline'}
+                        />
+                    </View>
+                </View>
             </View>
 
-            {/* Logout Button */}
-            <TouchableOpacity
-                onPress={handleLogout}
-                className="bg-red-500 p-4 rounded-lg"
-            >
-                <Text className="text-white text-center font-bold text-lg">
-                    {t('profile.logout')}
-                </Text>
-            </TouchableOpacity>
-        </View>
+            {/* Actions */}
+            <View className="px-4 mb-8 gap-2">
+                <Button
+                    title={t('profile.editProfile')}
+                    onPress={handleEditProfile}
+                    variant="outline"
+                />
+                <Button
+                    title={t('profile.logout')}
+                    onPress={() => setShowLogoutDialog(true)}
+                    variant="danger"
+                />
+            </View>
+
+            {/* Logout Confirmation */}
+            <ConfirmDialog
+                visible={showLogoutDialog}
+                title={t('profile.logout')}
+                message={t('profile.logoutConfirm')}
+                confirmText={t('profile.logout')}
+                cancelText={t('common.cancel')}
+                onConfirm={handleLogout}
+                onCancel={() => setShowLogoutDialog(false)}
+                destructive
+            />
+        </ScrollView>
     );
 }

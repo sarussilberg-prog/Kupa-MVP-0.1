@@ -1,37 +1,56 @@
-/**
- * Users Service
- * Business logic for user operations
- */
-
 import { Injectable } from '@nestjs/common';
-import { User } from '@cost-share/shared';
-import { users } from '../data/mock-data';
+import { User, UpdateProfileDto } from '@cost-share/shared';
+import { SupabaseService } from '../database/supabase.service';
+import { profileFromRow } from '../database/mappers';
 
 @Injectable()
 export class UsersService {
-    /**
-     * Get all users
-     */
-    findAll(): User[] {
-        return users;
+    constructor(private readonly supabase: SupabaseService) {}
+
+    async findAll(): Promise<User[]> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        return (data ?? []).map(profileFromRow);
     }
 
-    /**
-     * Get user by ID
-     */
-    findById(id: string): User | undefined {
-        return users.find(user => user.id === id);
+    async findById(id: string): Promise<User | undefined> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? profileFromRow(data) : undefined;
     }
 
-    /**
-     * Update user
-     * In a real app, this would update the database
-     */
-    update(id: string, updates: Partial<User>): User | undefined {
-        const user = users.find(u => u.id === id);
-        if (!user) return undefined;
+    async update(id: string, updates: UpdateProfileDto): Promise<User | undefined> {
+        const patch: Record<string, any> = {};
+        if (updates.name !== undefined) patch.name = updates.name;
+        if (updates.email !== undefined) patch.email = updates.email;
+        if (updates.phone !== undefined) patch.phone = updates.phone;
+        if (updates.avatarUrl !== undefined) patch.avatar_url = updates.avatarUrl;
+        if (updates.defaultCurrency !== undefined) patch.default_currency = updates.defaultCurrency;
+        if (updates.language !== undefined) patch.language = updates.language;
 
-        Object.assign(user, updates, { updatedAt: new Date() });
-        return user;
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .maybeSingle();
+        if (error) throw error;
+        return data ? profileFromRow(data) : undefined;
+    }
+
+    async searchByName(query: string): Promise<User[]> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .ilike('name', `%${query}%`);
+        if (error) throw error;
+        return (data ?? []).map(profileFromRow);
     }
 }
