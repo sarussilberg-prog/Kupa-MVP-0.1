@@ -1,69 +1,83 @@
-/**
- * Calculations Service
- * Implements balance calculation logic from DATABASE_ARCHITECTURE.md views
- * Provides financial calculations for expenses, splits, and settlements
- */
-
 import { Injectable } from '@nestjs/common';
 import {
     UserBalance,
     GroupSummary,
-    DebtSummary
+    DebtSummary,
 } from '@cost-share/shared';
-import { profiles, groups, groupMembers, expenses, expenseSplits, settlements } from '../data/mock-data';
+import { SupabaseService } from '../database/supabase.service';
 
 @Injectable()
 export class CalculationsService {
-    /**
-     * Calculate user balances in a group
-     * Implements: user_balances_view logic from DATABASE_ARCHITECTURE.md
-     * 
-     * Balance calculation:
-     * netBalance = totalPaid - totalOwed + totalSettledReceived - totalSettledPaid
-     * 
-     * Positive balance = user is owed money
-     * Negative balance = user owes money
-     */
-    calculateUserBalances(groupId: string, userId?: string): UserBalance[] {
-        // Filter expenses for this group (not deleted)
-        const groupExpenses = expenses.filter(e => e.groupId === groupId && !e.isDeleted);
+    constructor(private readonly supabase: SupabaseService) {}
 
-        // Get all users in group (or specific user)
+    /**
+     * Net balance per user in a group:
+     *   netBalance = totalPaid - totalOwed + totalSettledReceived - totalSettledPaid
+     * Positive = user is owed money; negative = user owes money.
+     */
+    async calculateUserBalances(groupId: string, userId?: string): Promise<UserBalance[]> {
+        const sb = this.supabase.client;
+
+        const [groupRes, membersRes, expensesRes, settlementsRes] = await Promise.all([
+            sb.from('groups').select('default_currency').eq('id', groupId).maybeSingle(),
+            sb.from('group_members').select('user_id').eq('group_id', groupId).eq('is_active', true),
+            sb.from('expenses').select('id, paid_by, amount').eq('group_id', groupId).eq('is_deleted', false),
+            sb.from('settlements').select('from_user_id, to_user_id, amount').eq('group_id', groupId),
+        ]);
+
+        if (groupRes.error) throw groupRes.error;
+        if (membersRes.error) throw membersRes.error;
+        if (expensesRes.error) throw expensesRes.error;
+        if (settlementsRes.error) throw settlementsRes.error;
+
+        const defaultCurrency = groupRes.data?.default_currency ?? 'USD';
+        const expenses = (expensesRes.data ?? []).map(e => ({
+            id: e.id as string,
+            paidBy: e.paid_by as string,
+            amount: Number(e.amount),
+        }));
+        const settlements = (settlementsRes.data ?? []).map(s => ({
+            fromUserId: s.from_user_id as string,
+            toUserId: s.to_user_id as string,
+            amount: Number(s.amount),
+        }));
+
+        const expenseIds = expenses.map(e => e.id);
+        let splits: { expenseId: string; userId: string; amount: number }[] = [];
+        if (expenseIds.length > 0) {
+            const { data: splitsData, error: splitsErr } = await sb
+                .from('expense_splits')
+                .select('expense_id, user_id, amount')
+                .in('expense_id', expenseIds);
+            if (splitsErr) throw splitsErr;
+            splits = (splitsData ?? []).map(s => ({
+                expenseId: s.expense_id as string,
+                userId: s.user_id as string,
+                amount: Number(s.amount),
+            }));
+        }
+
         const userIds = userId
             ? [userId]
-            : [...new Set(groupMembers
-                .filter(gm => gm.groupId === groupId && gm.isActive)
-                .map(gm => gm.userId))];
-
-        // Get group's default currency
-        const group = groups.find(g => g.id === groupId);
-        const defaultCurrency = group?.defaultCurrency || 'USD';
+            : Array.from(new Set((membersRes.data ?? []).map(m => m.user_id as string)));
 
         return userIds.map(uid => {
-            // What user paid (sum of expenses where user is payer)
-            const totalPaid = groupExpenses
+            const totalPaid = expenses
                 .filter(e => e.paidBy === uid)
                 .reduce((sum, e) => sum + e.amount, 0);
 
-            // What user owes (sum of splits for this user)
-            const totalOwed = expenseSplits
-                .filter(es => {
-                    const expense = groupExpenses.find(e => e.id === es.expenseId);
-                    return es.userId === uid && expense;
-                })
-                .reduce((sum, es) => sum + es.amount, 0);
+            const totalOwed = splits
+                .filter(s => s.userId === uid)
+                .reduce((sum, s) => sum + s.amount, 0);
 
-            // Settlements paid by user (user is paying someone)
             const totalSettledPaid = settlements
-                .filter(s => s.groupId === groupId && s.fromUserId === uid)
+                .filter(s => s.fromUserId === uid)
                 .reduce((sum, s) => sum + s.amount, 0);
 
-            // Settlements received by user (someone paid user)
             const totalSettledReceived = settlements
-                .filter(s => s.groupId === groupId && s.toUserId === uid)
+                .filter(s => s.toUserId === uid)
                 .reduce((sum, s) => sum + s.amount, 0);
 
-            // Net balance calculation
             const netBalance = totalPaid - totalOwed + totalSettledReceived - totalSettledPaid;
 
             return {
@@ -79,53 +93,43 @@ export class CalculationsService {
         });
     }
 
-    /**
-     * Get who owes whom in a group
-     * Simplifies debts to minimize number of transactions
-     * 
-     * Algorithm:
-     * 1. Calculate all user balances
-     * 2. Separate creditors (positive balance) and debtors (negative balance)
-     * 3. Match debtors with creditors to minimize transactions
-     */
-    getWhoOwesWhom(groupId: string): DebtSummary[] {
-        const balances = this.calculateUserBalances(groupId);
+    async getWhoOwesWhom(groupId: string): Promise<DebtSummary[]> {
+        const balances = await this.calculateUserBalances(groupId);
         const debts: DebtSummary[] = [];
 
-        // Separate creditors (owed money) and debtors (owe money)
-        const creditors = balances
-            .filter(b => b.netBalance > 0.01) // Small threshold for floating point
-            .map(b => ({ ...b })); // Clone to avoid mutation
+        const creditors = balances.filter(b => b.netBalance > 0.01).map(b => ({ ...b }));
+        const debtors = balances.filter(b => b.netBalance < -0.01).map(b => ({ ...b }));
 
-        const debtors = balances
-            .filter(b => b.netBalance < -0.01)
-            .map(b => ({ ...b }));
+        const userIds = Array.from(new Set([
+            ...creditors.map(c => c.userId),
+            ...debtors.map(d => d.userId),
+        ]));
+        const nameById = new Map<string, string>();
+        if (userIds.length > 0) {
+            const { data, error } = await this.supabase.client
+                .from('profiles')
+                .select('id, name')
+                .in('id', userIds);
+            if (error) throw error;
+            (data ?? []).forEach((p: any) => nameById.set(p.id, p.name));
+        }
 
-        // Match each debtor with creditors
         for (const debtor of debtors) {
             let remaining = Math.abs(debtor.netBalance);
-
             for (const creditor of creditors) {
-                if (remaining <= 0.01) break; // Done with this debtor
-                if (creditor.netBalance <= 0.01) continue; // Creditor fully paid
+                if (remaining <= 0.01) break;
+                if (creditor.netBalance <= 0.01) continue;
 
-                // Amount to transfer (minimum of what debtor owes and creditor is owed)
                 const amount = Math.min(remaining, creditor.netBalance);
-
-                // Get user names
-                const fromUser = profiles.find(p => p.id === debtor.userId);
-                const toUser = profiles.find(p => p.id === creditor.userId);
-
                 debts.push({
                     fromUserId: debtor.userId,
-                    fromUserName: fromUser?.name || 'Unknown',
+                    fromUserName: nameById.get(debtor.userId) ?? 'Unknown',
                     toUserId: creditor.userId,
-                    toUserName: toUser?.name || 'Unknown',
+                    toUserName: nameById.get(creditor.userId) ?? 'Unknown',
                     amount: Number(amount.toFixed(2)),
                     currency: debtor.currency,
                 });
 
-                // Update remaining amounts
                 remaining -= amount;
                 creditor.netBalance -= amount;
             }
@@ -134,100 +138,92 @@ export class CalculationsService {
         return debts;
     }
 
-    /**
-     * Calculate group summary statistics
-     * Implements: group_summary_view logic from DATABASE_ARCHITECTURE.md
-     */
-    calculateGroupSummary(groupId: string): GroupSummary | null {
-        const group = groups.find(g => g.id === groupId && g.isActive);
+    async calculateGroupSummary(groupId: string): Promise<GroupSummary | null> {
+        const sb = this.supabase.client;
+
+        const { data: group, error: groupErr } = await sb
+            .from('groups')
+            .select('*')
+            .eq('id', groupId)
+            .eq('is_active', true)
+            .maybeSingle();
+        if (groupErr) throw groupErr;
         if (!group) return null;
 
-        // Get active members
-        const members = groupMembers.filter(gm => gm.groupId === groupId && gm.isActive);
+        const [{ count: memberCount, error: mErr }, expensesRes] = await Promise.all([
+            sb.from('group_members')
+                .select('id', { count: 'exact', head: true })
+                .eq('group_id', groupId)
+                .eq('is_active', true),
+            sb.from('expenses')
+                .select('amount, expense_date')
+                .eq('group_id', groupId)
+                .eq('is_deleted', false),
+        ]);
+        if (mErr) throw mErr;
+        if (expensesRes.error) throw expensesRes.error;
 
-        // Get non-deleted expenses
-        const groupExpenses = expenses.filter(e => e.groupId === groupId && !e.isDeleted);
-
-        // Calculate total spent
-        const totalSpent = groupExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-        // Find last expense date
-        const lastExpenseDate = groupExpenses.length > 0
-            ? new Date(Math.max(...groupExpenses.map(e => e.expenseDate.getTime())))
+        const expenses = expensesRes.data ?? [];
+        const totalSpent = expenses.reduce((sum, e: any) => sum + Number(e.amount), 0);
+        const lastExpenseDate = expenses.length > 0
+            ? new Date(Math.max(...expenses.map((e: any) => new Date(e.expense_date).getTime())))
             : undefined;
 
         return {
             groupId: group.id,
             name: group.name,
-            groupType: group.groupType,
-            defaultCurrency: group.defaultCurrency,
-            memberCount: members.length,
-            expenseCount: groupExpenses.length,
+            groupType: group.group_type,
+            defaultCurrency: group.default_currency,
+            memberCount: memberCount ?? 0,
+            expenseCount: expenses.length,
             totalSpent: Number(totalSpent.toFixed(2)),
             lastExpenseDate,
-            createdAt: group.createdAt,
-            updatedAt: group.updatedAt,
+            createdAt: new Date(group.created_at),
+            updatedAt: new Date(group.updated_at),
         };
     }
 
-    /**
-     * Get all group summaries for a user
-     */
-    getUserGroupSummaries(userId: string): GroupSummary[] {
-        // Get all groups user is a member of
-        const userGroupIds = groupMembers
-            .filter(gm => gm.userId === userId && gm.isActive)
-            .map(gm => gm.groupId);
+    async getUserGroupSummaries(userId: string): Promise<GroupSummary[]> {
+        const { data, error } = await this.supabase.client
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        if (error) throw error;
 
-        // Calculate summary for each group
-        return userGroupIds
-            .map(groupId => this.calculateGroupSummary(groupId))
-            .filter((summary): summary is GroupSummary => summary !== null);
+        const groupIds = (data ?? []).map((r: any) => r.group_id as string);
+        const summaries = await Promise.all(
+            groupIds.map(id => this.calculateGroupSummary(id)),
+        );
+        return summaries.filter((s): s is GroupSummary => s !== null);
     }
 
-    /**
-     * Validate if a settlement amount is valid
-     * Ensures user doesn't overpay their debt
-     */
-    validateSettlement(groupId: string, fromUserId: string, toUserId: string, amount: number): {
-        valid: boolean;
-        message?: string;
-        maxAmount?: number;
-    } {
-        const balances = this.calculateUserBalances(groupId);
+    async validateSettlement(
+        groupId: string,
+        fromUserId: string,
+        toUserId: string,
+        amount: number,
+    ): Promise<{ valid: boolean; message?: string; maxAmount?: number }> {
+        const balances = await this.calculateUserBalances(groupId);
         const fromUserBalance = balances.find(b => b.userId === fromUserId);
         const toUserBalance = balances.find(b => b.userId === toUserId);
 
         if (!fromUserBalance || !toUserBalance) {
-            return {
-                valid: false,
-                message: 'User not found in group',
-            };
+            return { valid: false, message: 'User not found in group' };
         }
-
-        // From user should have negative balance (owes money)
         if (fromUserBalance.netBalance >= 0) {
-            return {
-                valid: false,
-                message: 'User does not owe money in this group',
-            };
+            return { valid: false, message: 'User does not owe money in this group' };
         }
-
-        // To user should have positive balance (is owed money)
         if (toUserBalance.netBalance <= 0) {
-            return {
-                valid: false,
-                message: 'Target user is not owed money in this group',
-            };
+            return { valid: false, message: 'Target user is not owed money in this group' };
         }
 
-        // Calculate maximum valid settlement amount
         const maxAmount = Math.min(
             Math.abs(fromUserBalance.netBalance),
-            toUserBalance.netBalance
+            toUserBalance.netBalance,
         );
 
-        if (amount > maxAmount + 0.01) { // Small threshold for floating point
+        if (amount > maxAmount + 0.01) {
             return {
                 valid: false,
                 message: `Settlement amount exceeds maximum of ${maxAmount.toFixed(2)}`,
@@ -235,59 +231,36 @@ export class CalculationsService {
             };
         }
 
-        return {
-            valid: true,
-            maxAmount: Number(maxAmount.toFixed(2)),
-        };
+        return { valid: true, maxAmount: Number(maxAmount.toFixed(2)) };
     }
 
-    /**
-     * Calculate equal split amounts for an expense
-     * Handles rounding to ensure sum equals total
-     */
     calculateEqualSplit(totalAmount: number, numPeople: number): number[] {
         const baseAmount = Math.floor((totalAmount * 100) / numPeople) / 100;
         const remainder = Number((totalAmount - (baseAmount * numPeople)).toFixed(2));
-
         const splits = new Array(numPeople).fill(baseAmount);
-
-        // Add remainder to last person to ensure sum equals total
         if (remainder > 0) {
             splits[splits.length - 1] = Number((splits[splits.length - 1] + remainder).toFixed(2));
         }
-
         return splits;
     }
 
-    /**
-     * Validate expense splits
-     * Ensures splits sum to total amount
-     */
-    validateExpenseSplits(totalAmount: number, splits: { userId: string; amount: number }[]): {
-        valid: boolean;
-        message?: string;
-        difference?: number;
-    } {
-        const splitSum = splits.reduce((sum, split) => sum + split.amount, 0);
+    validateExpenseSplits(
+        totalAmount: number,
+        splits: { userId: string; amount: number }[],
+    ): { valid: boolean; message?: string; difference?: number } {
+        const splitSum = splits.reduce((sum, s) => sum + s.amount, 0);
         const difference = Number((totalAmount - splitSum).toFixed(2));
 
-        if (Math.abs(difference) > 0.01) { // Small threshold for floating point
+        if (Math.abs(difference) > 0.01) {
             return {
                 valid: false,
                 message: `Splits sum (${splitSum.toFixed(2)}) does not equal total amount (${totalAmount.toFixed(2)})`,
                 difference,
             };
         }
-
-        // Check for negative amounts
-        const hasNegative = splits.some(s => s.amount < 0);
-        if (hasNegative) {
-            return {
-                valid: false,
-                message: 'Split amounts cannot be negative',
-            };
+        if (splits.some(s => s.amount < 0)) {
+            return { valid: false, message: 'Split amounts cannot be negative' };
         }
-
         return { valid: true };
     }
 }

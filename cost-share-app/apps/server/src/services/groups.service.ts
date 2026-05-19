@@ -1,151 +1,140 @@
-/**
- * Groups Service
- * Business logic for group operations
- */
-
 import { Injectable } from '@nestjs/common';
-import { Group, GroupMember, CreateGroupDto, UpdateGroupDto, AddGroupMemberDto } from '@cost-share/shared';
-import { groups, groupMembers } from '../data/mock-data';
-import { generateId } from '@cost-share/shared';
+import {
+    Group,
+    GroupMember,
+    CreateGroupDto,
+    UpdateGroupDto,
+    AddGroupMemberDto,
+} from '@cost-share/shared';
+import { SupabaseService } from '../database/supabase.service';
+import { groupFromRow, groupMemberFromRow } from '../database/mappers';
 
 @Injectable()
 export class GroupsService {
-    /**
-     * Get all groups
-     */
-    findAll(): Group[] {
-        return groups.filter(g => g.isActive);
+    constructor(private readonly supabase: SupabaseService) {}
+
+    async findAll(): Promise<Group[]> {
+        const { data, error } = await this.supabase.client
+            .from('groups')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(groupFromRow);
     }
 
-    /**
-     * Get group by ID
-     */
-    findById(id: string): Group | undefined {
-        return groups.find(group => group.id === id && group.isActive);
+    async findById(id: string): Promise<Group | undefined> {
+        const { data, error } = await this.supabase.client
+            .from('groups')
+            .select('*')
+            .eq('id', id)
+            .eq('is_active', true)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? groupFromRow(data) : undefined;
     }
 
-    /**
-     * Create a new group
-     * Also creates group memberships for initial members
-     */
-    create(dto: CreateGroupDto, createdBy: string): Group {
-        const newGroup: Group = {
-            id: generateId(),
-            name: dto.name,
-            description: dto.description,
-            imageUrl: dto.imageUrl,
-            groupType: dto.groupType || 'general',
-            defaultCurrency: dto.defaultCurrency || 'USD',
-            createdBy,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+    async create(dto: CreateGroupDto, createdBy: string): Promise<Group> {
+        const { data: groupRow, error: groupErr } = await this.supabase.client
+            .from('groups')
+            .insert({
+                name: dto.name,
+                description: dto.description,
+                image_url: dto.imageUrl,
+                group_type: dto.groupType ?? 'general',
+                default_currency: dto.defaultCurrency ?? 'USD',
+                created_by: createdBy,
+            })
+            .select()
+            .single();
+        if (groupErr) throw groupErr;
 
-        groups.push(newGroup);
+        const memberIds = new Set<string>([createdBy, ...dto.memberIds]);
+        const rows = Array.from(memberIds).map(userId => ({
+            group_id: groupRow.id,
+            user_id: userId,
+        }));
+        const { error: membersErr } = await this.supabase.client
+            .from('group_members')
+            .insert(rows);
+        if (membersErr) throw membersErr;
 
-        // Add creator as member
-        const creatorMembership: GroupMember = {
-            id: generateId(),
-            groupId: newGroup.id,
-            userId: createdBy,
-            joinedAt: new Date(),
-            isActive: true,
-        };
-        groupMembers.push(creatorMembership);
-
-        // Add other initial members
-        for (const memberId of dto.memberIds) {
-            if (memberId !== createdBy) { // Don't add creator twice
-                const membership: GroupMember = {
-                    id: generateId(),
-                    groupId: newGroup.id,
-                    userId: memberId,
-                    joinedAt: new Date(),
-                    isActive: true,
-                };
-                groupMembers.push(membership);
-            }
-        }
-
-        return newGroup;
+        return groupFromRow(groupRow);
     }
 
-    /**
-     * Update group
-     */
-    update(id: string, dto: UpdateGroupDto): Group | undefined {
-        const group = groups.find(g => g.id === id && g.isActive);
-        if (!group) return undefined;
+    async update(id: string, dto: UpdateGroupDto): Promise<Group | undefined> {
+        const patch: Record<string, any> = {};
+        if (dto.name !== undefined) patch.name = dto.name;
+        if (dto.description !== undefined) patch.description = dto.description;
+        if (dto.imageUrl !== undefined) patch.image_url = dto.imageUrl;
+        if (dto.groupType !== undefined) patch.group_type = dto.groupType;
+        if (dto.defaultCurrency !== undefined) patch.default_currency = dto.defaultCurrency;
 
-        Object.assign(group, dto, { updatedAt: new Date() });
-        return group;
+        const { data, error } = await this.supabase.client
+            .from('groups')
+            .update(patch)
+            .eq('id', id)
+            .eq('is_active', true)
+            .select()
+            .maybeSingle();
+        if (error) throw error;
+        return data ? groupFromRow(data) : undefined;
     }
 
-    /**
-     * Soft delete group
-     */
-    delete(id: string): boolean {
-        const group = groups.find(g => g.id === id);
-        if (!group) return false;
-
-        group.isActive = false;
-        group.updatedAt = new Date();
-        return true;
+    async delete(id: string): Promise<boolean> {
+        const { data, error } = await this.supabase.client
+            .from('groups')
+            .update({ is_active: false })
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        return data !== null;
     }
 
-    /**
-     * Get groups by user ID
-     */
-    findByUserId(userId: string): Group[] {
-        const userGroupIds = groupMembers
-            .filter(gm => gm.userId === userId && gm.isActive)
-            .map(gm => gm.groupId);
-
-        return groups.filter(g =>
-            userGroupIds.includes(g.id) && g.isActive
-        );
+    async findByUserId(userId: string): Promise<Group[]> {
+        const { data, error } = await this.supabase.client
+            .from('group_members')
+            .select('groups(*)')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        if (error) throw error;
+        return (data ?? [])
+            .map((row: any) => row.groups)
+            .filter((g: any) => g && g.is_active)
+            .map(groupFromRow);
     }
 
-    /**
-     * Get group members
-     */
-    getMembers(groupId: string): GroupMember[] {
-        return groupMembers.filter(gm =>
-            gm.groupId === groupId && gm.isActive
-        );
+    async getMembers(groupId: string): Promise<GroupMember[]> {
+        const { data, error } = await this.supabase.client
+            .from('group_members')
+            .select('*')
+            .eq('group_id', groupId)
+            .eq('is_active', true);
+        if (error) throw error;
+        return (data ?? []).map(groupMemberFromRow);
     }
 
-    /**
-     * Add member to group
-     */
-    addMember(dto: AddGroupMemberDto): GroupMember {
-        const newMember: GroupMember = {
-            id: generateId(),
-            groupId: dto.groupId,
-            userId: dto.userId,
-            joinedAt: new Date(),
-            isActive: true,
-        };
-
-        groupMembers.push(newMember);
-        return newMember;
+    async addMember(dto: AddGroupMemberDto): Promise<GroupMember> {
+        const { data, error } = await this.supabase.client
+            .from('group_members')
+            .insert({ group_id: dto.groupId, user_id: dto.userId })
+            .select()
+            .single();
+        if (error) throw error;
+        return groupMemberFromRow(data);
     }
 
-    /**
-     * Remove member from group (soft delete)
-     */
-    removeMember(groupId: string, userId: string): boolean {
-        const membership = groupMembers.find(gm =>
-            gm.groupId === groupId &&
-            gm.userId === userId &&
-            gm.isActive
-        );
-
-        if (!membership) return false;
-
-        membership.isActive = false;
-        membership.leftAt = new Date();
-        return true;
+    async removeMember(groupId: string, userId: string): Promise<boolean> {
+        const { data, error } = await this.supabase.client
+            .from('group_members')
+            .update({ is_active: false, left_at: new Date().toISOString() })
+            .eq('group_id', groupId)
+            .eq('user_id', userId)
+            .eq('is_active', true)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        return data !== null;
     }
 }

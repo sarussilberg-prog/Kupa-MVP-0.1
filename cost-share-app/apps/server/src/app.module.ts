@@ -1,9 +1,6 @@
-/**
- * App Module
- * Root module that imports all controllers and services
- */
-
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { SupabaseModule } from './database/supabase.module';
 import { UsersController } from './controllers/users.controller';
 import { GroupsController } from './controllers/groups.controller';
 import { ExpensesController } from './controllers/expenses.controller';
@@ -15,19 +12,22 @@ import { CalculationsService } from './services/calculations.service';
 import { SettlementsService } from './services/settlements.service';
 
 @Module({
-    imports: [],
+    imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        SupabaseModule,
+    ],
     controllers: [
         UsersController,
         GroupsController,
         ExpensesController,
-        SettlementsController
+        SettlementsController,
     ],
     providers: [
         UsersService,
         GroupsService,
         ExpensesService,
         CalculationsService,
-        SettlementsService
+        SettlementsService,
     ],
 })
-export class AppModule { }
+export class AppModule {}

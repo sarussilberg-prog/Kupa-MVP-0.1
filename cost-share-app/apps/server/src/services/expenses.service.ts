@@ -1,204 +1,198 @@
-/**
- * Expenses Service
- * Business logic for expense operations with split support
- */
-
 import { Injectable } from '@nestjs/common';
-import { Expense, ExpenseSplit, CreateExpenseDto, UpdateExpenseDto } from '@cost-share/shared';
-import { expenses, expenseSplits } from '../data/mock-data';
-import { generateId } from '@cost-share/shared';
+import {
+    Expense,
+    ExpenseSplit,
+    CreateExpenseDto,
+    UpdateExpenseDto,
+} from '@cost-share/shared';
+import { SupabaseService } from '../database/supabase.service';
+import { expenseFromRow, expenseSplitFromRow } from '../database/mappers';
 import { CalculationsService } from './calculations.service';
 
 @Injectable()
 export class ExpensesService {
-    constructor(private calculationsService: CalculationsService) { }
+    constructor(
+        private readonly supabase: SupabaseService,
+        private readonly calculationsService: CalculationsService,
+    ) {}
 
-    /**
-     * Get all expenses (non-deleted)
-     */
-    findAll(): Expense[] {
-        return expenses.filter(e => !e.isDeleted);
+    async findAll(): Promise<Expense[]> {
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .select('*')
+            .eq('is_deleted', false)
+            .order('expense_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(expenseFromRow);
     }
 
-    /**
-     * Get expense by ID
-     */
-    findById(id: string): Expense | undefined {
-        return expenses.find(expense => expense.id === id && !expense.isDeleted);
+    async findById(id: string): Promise<Expense | undefined> {
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .select('*')
+            .eq('id', id)
+            .eq('is_deleted', false)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? expenseFromRow(data) : undefined;
     }
 
-    /**
-     * Get expenses by group ID
-     */
-    findByGroupId(groupId: string): Expense[] {
-        return expenses.filter(expense =>
-            expense.groupId === groupId && !expense.isDeleted
-        );
+    async findByGroupId(groupId: string): Promise<Expense[]> {
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .select('*')
+            .eq('group_id', groupId)
+            .eq('is_deleted', false)
+            .order('expense_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(expenseFromRow);
     }
 
-    /**
-     * Create a new expense with splits
-     * Validates splits and creates expense + split records
-     */
-    create(dto: CreateExpenseDto, createdBy: string): Expense | { error: string } {
-        // Calculate splits if not provided or amounts are missing
-        const splits = dto.splits.map(s => ({
-            userId: s.userId,
-            amount: s.amount ?? 0
-        }));
+    async create(
+        dto: CreateExpenseDto,
+        createdBy: string,
+    ): Promise<Expense | { error: string }> {
+        const splits = dto.splits.map(s => ({ userId: s.userId, amount: s.amount ?? 0 }));
 
-        // If any split amount is 0, calculate equal split
         if (splits.some(s => s.amount === 0)) {
-            const equalAmounts = this.calculationsService.calculateEqualSplit(
-                dto.amount,
-                splits.length
-            );
-            splits.forEach((split, index) => {
-                split.amount = equalAmounts[index];
-            });
+            const equal = this.calculationsService.calculateEqualSplit(dto.amount, splits.length);
+            splits.forEach((s, i) => { s.amount = equal[i]; });
         }
 
-        // Validate splits
         const validation = this.calculationsService.validateExpenseSplits(dto.amount, splits);
-        if (!validation.valid) {
-            return { error: validation.message || 'Invalid expense splits' };
-        }
+        if (!validation.valid) return { error: validation.message || 'Invalid expense splits' };
 
-        // Create expense
-        const newExpense: Expense = {
-            id: generateId(),
-            groupId: dto.groupId,
-            description: dto.description,
-            amount: dto.amount,
-            currency: dto.currency,
-            category: dto.category,
-            expenseDate: dto.expenseDate || new Date(),
-            receiptUrl: dto.receiptUrl,
-            paidBy: dto.paidBy,
-            createdBy,
-            isDeleted: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+        const expenseDate = (dto.expenseDate ?? new Date()).toISOString().slice(0, 10);
 
-        expenses.push(newExpense);
+        const { data: expenseRow, error: expenseErr } = await this.supabase.client
+            .from('expenses')
+            .insert({
+                group_id: dto.groupId,
+                description: dto.description,
+                amount: dto.amount,
+                currency: dto.currency,
+                category: dto.category,
+                expense_date: expenseDate,
+                receipt_url: dto.receiptUrl,
+                paid_by: dto.paidBy,
+                created_by: createdBy,
+            })
+            .select()
+            .single();
+        if (expenseErr) throw expenseErr;
 
-        // Create splits
-        for (const split of splits) {
-            const newSplit: ExpenseSplit = {
-                id: generateId(),
-                expenseId: newExpense.id,
-                userId: split.userId,
-                amount: split.amount,
-                createdAt: new Date(),
-            };
-            expenseSplits.push(newSplit);
-        }
+        const splitRows = splits.map(s => ({
+            expense_id: expenseRow.id,
+            user_id: s.userId,
+            amount: s.amount,
+        }));
+        const { error: splitsErr } = await this.supabase.client
+            .from('expense_splits')
+            .insert(splitRows);
+        if (splitsErr) throw splitsErr;
 
-        return newExpense;
+        return expenseFromRow(expenseRow);
     }
 
-    /**
-     * Update expense
-     * Note: Updating splits requires deleting old splits and creating new ones
-     */
-    update(id: string, dto: UpdateExpenseDto): Expense | { error: string } | undefined {
-        const expense = expenses.find(e => e.id === id && !e.isDeleted);
-        if (!expense) return undefined;
+    async update(
+        id: string,
+        dto: UpdateExpenseDto,
+    ): Promise<Expense | { error: string } | undefined> {
+        const existing = await this.findById(id);
+        if (!existing) return undefined;
 
-        // If splits are being updated, validate them
         if (dto.splits) {
-            const amount = dto.amount ?? expense.amount;
-            const splitsWithAmounts = dto.splits.map(s => ({
-                userId: s.userId,
-                amount: s.amount ?? 0
-            }));
+            const amount = dto.amount ?? existing.amount;
+            const splitsWithAmounts = dto.splits.map(s => ({ userId: s.userId, amount: s.amount ?? 0 }));
             const validation = this.calculationsService.validateExpenseSplits(amount, splitsWithAmounts);
-            if (!validation.valid) {
-                return { error: validation.message || 'Invalid expense splits' };
-            }
+            if (!validation.valid) return { error: validation.message || 'Invalid expense splits' };
 
-            // Remove old splits
-            const oldSplitIndices: number[] = [];
-            expenseSplits.forEach((split, index) => {
-                if (split.expenseId === id) {
-                    oldSplitIndices.push(index);
-                }
-            });
-            // Remove in reverse order to maintain indices
-            oldSplitIndices.reverse().forEach(index => {
-                expenseSplits.splice(index, 1);
-            });
+            const { error: delErr } = await this.supabase.client
+                .from('expense_splits')
+                .delete()
+                .eq('expense_id', id);
+            if (delErr) throw delErr;
 
-            // Add new splits
-            for (const split of dto.splits) {
-                const newSplit: ExpenseSplit = {
-                    id: generateId(),
-                    expenseId: id,
-                    userId: split.userId,
-                    amount: split.amount ?? 0,
-                    createdAt: new Date(),
-                };
-                expenseSplits.push(newSplit);
-            }
+            const splitRows = dto.splits.map(s => ({
+                expense_id: id,
+                user_id: s.userId,
+                amount: s.amount ?? 0,
+            }));
+            const { error: insErr } = await this.supabase.client
+                .from('expense_splits')
+                .insert(splitRows);
+            if (insErr) throw insErr;
         }
 
-        // Update expense fields
-        Object.assign(expense, {
-            description: dto.description ?? expense.description,
-            amount: dto.amount ?? expense.amount,
-            currency: dto.currency ?? expense.currency,
-            category: dto.category ?? expense.category,
-            expenseDate: dto.expenseDate ?? expense.expenseDate,
-            receiptUrl: dto.receiptUrl ?? expense.receiptUrl,
-            updatedAt: new Date(),
-        });
+        const patch: Record<string, any> = {};
+        if (dto.description !== undefined) patch.description = dto.description;
+        if (dto.amount !== undefined) patch.amount = dto.amount;
+        if (dto.currency !== undefined) patch.currency = dto.currency;
+        if (dto.category !== undefined) patch.category = dto.category;
+        if (dto.expenseDate !== undefined) patch.expense_date = dto.expenseDate.toISOString().slice(0, 10);
+        if (dto.receiptUrl !== undefined) patch.receipt_url = dto.receiptUrl;
 
-        return expense;
+        if (Object.keys(patch).length === 0) {
+            return existing;
+        }
+
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .maybeSingle();
+        if (error) throw error;
+        return data ? expenseFromRow(data) : undefined;
     }
 
-    /**
-     * Soft delete expense
-     */
-    delete(id: string): boolean {
-        const expense = expenses.find(e => e.id === id);
-        if (!expense) return false;
-
-        expense.isDeleted = true;
-        expense.updatedAt = new Date();
-        return true;
+    async delete(id: string): Promise<boolean> {
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .update({ is_deleted: true })
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        return data !== null;
     }
 
-    /**
-     * Get expenses by user ID (where user is involved)
-     */
-    findByUserId(userId: string): Expense[] {
-        // Get expense IDs where user has a split
-        const userExpenseIds = expenseSplits
-            .filter(es => es.userId === userId)
-            .map(es => es.expenseId);
+    async findByUserId(userId: string): Promise<Expense[]> {
+        const { data: splitRows, error: splitsErr } = await this.supabase.client
+            .from('expense_splits')
+            .select('expense_id')
+            .eq('user_id', userId);
+        if (splitsErr) throw splitsErr;
+        const expenseIdsFromSplits = (splitRows ?? []).map((r: any) => r.expense_id);
 
-        return expenses.filter(expense =>
-            !expense.isDeleted &&
-            (expense.paidBy === userId || userExpenseIds.includes(expense.id))
-        );
+        const orFilter = expenseIdsFromSplits.length
+            ? `paid_by.eq.${userId},id.in.(${expenseIdsFromSplits.join(',')})`
+            : `paid_by.eq.${userId}`;
+
+        const { data, error } = await this.supabase.client
+            .from('expenses')
+            .select('*')
+            .eq('is_deleted', false)
+            .or(orFilter);
+        if (error) throw error;
+        return (data ?? []).map(expenseFromRow);
     }
 
-    /**
-     * Get splits for an expense
-     */
-    getSplits(expenseId: string): ExpenseSplit[] {
-        return expenseSplits.filter(es => es.expenseId === expenseId);
+    async getSplits(expenseId: string): Promise<ExpenseSplit[]> {
+        const { data, error } = await this.supabase.client
+            .from('expense_splits')
+            .select('*')
+            .eq('expense_id', expenseId);
+        if (error) throw error;
+        return (data ?? []).map(expenseSplitFromRow);
     }
 
-    /**
-     * Get expense with splits
-     */
-    getExpenseWithSplits(expenseId: string): { expense: Expense; splits: ExpenseSplit[] } | undefined {
-        const expense = this.findById(expenseId);
+    async getExpenseWithSplits(
+        expenseId: string,
+    ): Promise<{ expense: Expense; splits: ExpenseSplit[] } | undefined> {
+        const expense = await this.findById(expenseId);
         if (!expense) return undefined;
-
-        const splits = this.getSplits(expenseId);
+        const splits = await this.getSplits(expenseId);
         return { expense, splits };
     }
 }

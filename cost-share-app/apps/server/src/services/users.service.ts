@@ -1,47 +1,56 @@
-/**
- * Profiles Service (renamed from Users Service)
- * Business logic for user profile operations
- */
-
 import { Injectable } from '@nestjs/common';
-import { Profile, UpdateProfileDto } from '@cost-share/shared';
-import { profiles } from '../data/mock-data';
+import { User, UpdateProfileDto } from '@cost-share/shared';
+import { SupabaseService } from '../database/supabase.service';
+import { profileFromRow } from '../database/mappers';
 
 @Injectable()
 export class UsersService {
-    /**
-     * Get all profiles
-     */
-    findAll(): Profile[] {
-        return profiles;
+    constructor(private readonly supabase: SupabaseService) {}
+
+    async findAll(): Promise<User[]> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        return (data ?? []).map(profileFromRow);
     }
 
-    /**
-     * Get profile by ID
-     */
-    findById(id: string): Profile | undefined {
-        return profiles.find(profile => profile.id === id);
+    async findById(id: string): Promise<User | undefined> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? profileFromRow(data) : undefined;
     }
 
-    /**
-     * Update profile
-     * In a real app, this would update the database
-     */
-    update(id: string, updates: UpdateProfileDto): Profile | undefined {
-        const profile = profiles.find(p => p.id === id);
-        if (!profile) return undefined;
+    async update(id: string, updates: UpdateProfileDto): Promise<User | undefined> {
+        const patch: Record<string, any> = {};
+        if (updates.name !== undefined) patch.name = updates.name;
+        if (updates.email !== undefined) patch.email = updates.email;
+        if (updates.phone !== undefined) patch.phone = updates.phone;
+        if (updates.avatarUrl !== undefined) patch.avatar_url = updates.avatarUrl;
+        if (updates.defaultCurrency !== undefined) patch.default_currency = updates.defaultCurrency;
+        if (updates.language !== undefined) patch.language = updates.language;
 
-        Object.assign(profile, updates, { updatedAt: new Date() });
-        return profile;
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .update(patch)
+            .eq('id', id)
+            .select()
+            .maybeSingle();
+        if (error) throw error;
+        return data ? profileFromRow(data) : undefined;
     }
 
-    /**
-     * Search profiles by name
-     */
-    searchByName(query: string): Profile[] {
-        const lowerQuery = query.toLowerCase();
-        return profiles.filter(p =>
-            p.name.toLowerCase().includes(lowerQuery)
-        );
+    async searchByName(query: string): Promise<User[]> {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .ilike('name', `%${query}%`);
+        if (error) throw error;
+        return (data ?? []).map(profileFromRow);
     }
 }

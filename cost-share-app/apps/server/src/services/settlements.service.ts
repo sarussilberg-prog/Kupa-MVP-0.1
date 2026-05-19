@@ -1,99 +1,101 @@
-/**
- * Settlements Service
- * Business logic for settlement operations (debt payments)
- */
-
 import { Injectable } from '@nestjs/common';
 import { Settlement, CreateSettlementDto } from '@cost-share/shared';
-import { settlements, profiles } from '../data/mock-data';
-import { generateId } from '@cost-share/shared';
+import { SupabaseService } from '../database/supabase.service';
+import { settlementFromRow } from '../database/mappers';
 import { CalculationsService } from './calculations.service';
 
 @Injectable()
 export class SettlementsService {
-    constructor(private calculationsService: CalculationsService) { }
+    constructor(
+        private readonly supabase: SupabaseService,
+        private readonly calculationsService: CalculationsService,
+    ) {}
 
-    /**
-     * Get all settlements
-     */
-    findAll(): Settlement[] {
-        return settlements;
+    async findAll(): Promise<Settlement[]> {
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .select('*')
+            .order('settlement_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(settlementFromRow);
     }
 
-    /**
-     * Get settlement by ID
-     */
-    findById(id: string): Settlement | undefined {
-        return settlements.find(s => s.id === id);
+    async findById(id: string): Promise<Settlement | undefined> {
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? settlementFromRow(data) : undefined;
     }
 
-    /**
-     * Get settlements by group
-     */
-    findByGroup(groupId: string): Settlement[] {
-        return settlements.filter(s => s.groupId === groupId);
+    async findByGroup(groupId: string): Promise<Settlement[]> {
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .select('*')
+            .eq('group_id', groupId)
+            .order('settlement_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(settlementFromRow);
     }
 
-    /**
-     * Get settlements by user (either from or to)
-     */
-    findByUser(userId: string): Settlement[] {
-        return settlements.filter(s =>
-            s.fromUserId === userId || s.toUserId === userId
-        );
+    async findByUser(userId: string): Promise<Settlement[]> {
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .select('*')
+            .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+            .order('settlement_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(settlementFromRow);
     }
 
-    /**
-     * Create a new settlement
-     * Validates the settlement amount before creating
-     */
-    create(dto: CreateSettlementDto, createdBy: string): Settlement | { error: string } {
-        // Validate settlement
-        const validation = this.calculationsService.validateSettlement(
+    async create(
+        dto: CreateSettlementDto,
+        createdBy: string,
+    ): Promise<Settlement | { error: string }> {
+        const validation = await this.calculationsService.validateSettlement(
             dto.groupId,
             dto.fromUserId,
             dto.toUserId,
-            dto.amount
+            dto.amount,
         );
+        if (!validation.valid) return { error: validation.message || 'Invalid settlement' };
 
-        if (!validation.valid) {
-            return { error: validation.message || 'Invalid settlement' };
-        }
+        const settlementDate = (dto.settlementDate ?? new Date()).toISOString().slice(0, 10);
 
-        // Ensure users exist
-        const fromUser = profiles.find(p => p.id === dto.fromUserId);
-        const toUser = profiles.find(p => p.id === dto.toUserId);
-
-        if (!fromUser || !toUser) {
-            return { error: 'User not found' };
-        }
-
-        // Create settlement
-        const newSettlement: Settlement = {
-            id: generateId(),
-            groupId: dto.groupId,
-            fromUserId: dto.fromUserId,
-            toUserId: dto.toUserId,
-            amount: dto.amount,
-            currency: dto.currency,
-            settlementDate: dto.settlementDate || new Date(),
-            paymentMethod: dto.paymentMethod,
-            createdBy,
-            createdAt: new Date(),
-        };
-
-        settlements.push(newSettlement);
-        return newSettlement;
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .insert({
+                group_id: dto.groupId,
+                from_user_id: dto.fromUserId,
+                to_user_id: dto.toUserId,
+                amount: dto.amount,
+                currency: dto.currency,
+                settlement_date: settlementDate,
+                payment_method: dto.paymentMethod,
+                created_by: createdBy,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return settlementFromRow(data);
     }
 
-    /**
-     * Get settlement history between two users in a group
-     */
-    getSettlementHistory(groupId: string, userId1: string, userId2: string): Settlement[] {
-        return settlements.filter(s =>
-            s.groupId === groupId &&
-            ((s.fromUserId === userId1 && s.toUserId === userId2) ||
-                (s.fromUserId === userId2 && s.toUserId === userId1))
-        );
+    async getSettlementHistory(
+        groupId: string,
+        userId1: string,
+        userId2: string,
+    ): Promise<Settlement[]> {
+        const { data, error } = await this.supabase.client
+            .from('settlements')
+            .select('*')
+            .eq('group_id', groupId)
+            .or(
+                `and(from_user_id.eq.${userId1},to_user_id.eq.${userId2}),and(from_user_id.eq.${userId2},to_user_id.eq.${userId1})`,
+            )
+            .order('settlement_date', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(settlementFromRow);
     }
 }
