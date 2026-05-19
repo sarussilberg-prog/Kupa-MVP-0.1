@@ -27,3 +27,58 @@ describe('api base URL', () => {
         expect(getApiBaseUrl()).toBe('http://localhost:3000/api');
     });
 });
+
+jest.mock('../../lib/supabase', () => ({
+    supabase: {
+        auth: {
+            getSession: jest.fn(),
+        },
+    },
+}));
+
+describe('api auth headers', () => {
+    beforeEach(() => {
+        jest.resetModules();
+        jest.doMock('../../lib/supabase', () => ({
+            supabase: {
+                auth: { getSession: jest.fn() },
+            },
+        }));
+        global.fetch = jest.fn().mockResolvedValue({
+            status: 200,
+            json: async () => ({ success: true, data: [] }),
+        }) as any;
+    });
+
+    it('sends Authorization Bearer when session exists', async () => {
+        const { supabase } = require('../../lib/supabase');
+        (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+            data: { session: { access_token: 'test-jwt-token' } },
+        });
+
+        const { apiGet } = require('../../services/api');
+        await apiGet('/groups');
+
+        expect(global.fetch).toHaveBeenCalledWith(
+            expect.stringContaining('/groups'),
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer test-jwt-token',
+                }),
+            }),
+        );
+    });
+
+    it('omits Authorization when no session', async () => {
+        const { supabase } = require('../../lib/supabase');
+        (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+            data: { session: null },
+        });
+
+        const { apiGet } = require('../../services/api');
+        await apiGet('/groups');
+
+        const [, options] = (global.fetch as jest.Mock).mock.calls[0];
+        expect(options.headers.Authorization).toBeUndefined();
+    });
+});

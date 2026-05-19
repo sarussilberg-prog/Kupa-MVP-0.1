@@ -5,12 +5,19 @@
  */
 
 import { ApiResponse } from '@cost-share/shared';
+import { supabase } from '../lib/supabase';
 
 export function getApiBaseUrl(): string {
     if (process.env.EXPO_PUBLIC_API_URL) {
         return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
     }
     return 'http://localhost:3000/api';
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
 }
 
 /**
@@ -21,15 +28,22 @@ async function apiRequest<T>(
     options?: RequestInit
 ): Promise<ApiResponse<T>> {
     try {
+        const authHeaders = await getAuthHeaders();
         const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
+                ...authHeaders,
                 ...options?.headers,
             },
         });
 
         const data = await response.json();
+
+        if (response.status === 401) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
         return data;
     } catch (error) {
         console.error('API Error:', error);
