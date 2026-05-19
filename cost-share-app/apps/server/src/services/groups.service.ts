@@ -23,6 +23,27 @@ export class GroupsService {
         return (data ?? []).map(groupFromRow);
     }
 
+    async findAllForUser(userId: string): Promise<Group[]> {
+        const { data: memberships, error: memberErr } = await this.supabase.client
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        if (memberErr) throw memberErr;
+
+        const groupIds = (memberships ?? []).map((m) => m.group_id as string);
+        if (groupIds.length === 0) return [];
+
+        const { data, error } = await this.supabase.client
+            .from('groups')
+            .select('*')
+            .in('id', groupIds)
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []).map(groupFromRow);
+    }
+
     async findById(id: string): Promise<Group | undefined> {
         const { data, error } = await this.supabase.client
             .from('groups')

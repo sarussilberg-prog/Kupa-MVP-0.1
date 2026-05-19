@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { SettlementsService } from '../services/settlements.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 import { CreateSettlementDto } from '@cost-share/shared';
 
 @Controller('settlements')
@@ -18,10 +20,11 @@ export class SettlementsController {
     }
 
     @Post()
-    async createSettlement(@Body() dto: CreateSettlementDto) {
-        // TODO: createdBy should come from auth token; for now assume creator is the payer.
-        const createdBy = dto.fromUserId;
-        return this.settlementsService.create(dto, createdBy);
+    async createSettlement(
+        @Body() dto: CreateSettlementDto,
+        @CurrentUser() user: AuthUser,
+    ) {
+        return this.settlementsService.create(dto, user.id);
     }
 
     @Get('user/:userId')
