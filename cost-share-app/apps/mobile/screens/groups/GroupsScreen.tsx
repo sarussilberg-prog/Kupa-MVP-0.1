@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { useAppStore } from '../../store';
 import { fetchGroups, getGroupMembers } from '../../services/groups.service';
 import { useLoading } from '../../hooks/useLoading';
@@ -15,6 +16,7 @@ import { Group } from '@cost-share/shared';
 
 export function GroupsScreen() {
     const { t } = useTranslation();
+    const navigation = useNavigation();
     const { groups } = useAppStore();
     const { isLoading, startLoading, stopLoading } = useLoading();
     const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
@@ -26,7 +28,7 @@ export function GroupsScreen() {
     const loadGroups = async () => {
         startLoading();
         const fetchedGroups = await fetchGroups();
-        
+
         // Fetch member counts for each group
         const counts: Record<string, number> = {};
         for (const group of fetchedGroups) {
@@ -34,7 +36,7 @@ export function GroupsScreen() {
             counts[group.id] = members.length;
         }
         setMemberCounts(counts);
-        
+
         stopLoading();
     };
 
@@ -43,8 +45,16 @@ export function GroupsScreen() {
         console.log('Create group pressed');
     };
 
+    const handleGroupPress = (groupId: string) => {
+        // @ts-ignore - Navigation typing issue with nested navigators
+        navigation.navigate('GroupDetail', { groupId });
+    };
+
     const renderGroup = ({ item }: { item: Group }) => (
-        <TouchableOpacity className="bg-white p-4 mb-2 rounded-lg shadow">
+        <TouchableOpacity
+            className="bg-white p-4 mb-2 rounded-lg shadow"
+            onPress={() => handleGroupPress(item.id)}
+        >
             <Text className="text-lg font-bold">{item.name}</Text>
             {item.description && (
                 <Text className="text-gray-600 mt-1">{item.description}</Text>

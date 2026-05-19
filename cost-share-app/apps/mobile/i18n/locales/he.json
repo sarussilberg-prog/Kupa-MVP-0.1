@@ -73,6 +73,18 @@
         "description": "תיאור",
         "amount": "סכום",
         "category": "קטגוריה",
-        "date": "תאריך"
+        "date": "תאריך",
+        "paidBy": "שולם על ידי",
+        "splitBetween": "חולק בין"
+    },
+    "balances": {
+        "title": "יתרות",
+        "settledUp": "מסודר",
+        "getsBack": "מקבל בחזרה",
+        "owes": "חייב",
+        "paid": "שילם",
+        "simplifiedDebts": "חובות מפושטים",
+        "allSettled": "הכל מסודר!",
+        "noDebts": "אין חובות בקבוצה זו"
     }
 }

@@ -15,13 +15,14 @@
 // ============================================
 
 /**
- * Profile entity - User profile information
+ * User entity - User profile information
  * Maps to: profiles table
  * Integrates with Supabase Auth (auth.users)
  */
-export interface Profile {
+export interface User {
     id: string;  // UUID - references auth.users(id)
     name: string;
+    email?: string;
     avatarUrl?: string;
     phone?: string;
     defaultCurrency: string;  // 'USD', 'ILS', 'EUR', etc.
@@ -329,6 +330,7 @@ export interface AddGroupMemberDto {
  */
 export interface UpdateProfileDto {
     name?: string;
+    email?: string;
     phone?: string;
     avatarUrl?: string;
     defaultCurrency?: string;
@@ -341,6 +343,7 @@ export interface UpdateProfileDto {
 export interface CreateProfileDto {
     id: string;  // From auth.users
     name: string;
+    email?: string;
     avatarUrl?: string;
     phone?: string;
     defaultCurrency?: string;
@@ -390,6 +393,6 @@ export interface UserPreferences {
 // ============================================
 
 /**
- * @deprecated Use Profile instead
+ * @deprecated Use User instead
  */
-export type User = Profile;
+export type Profile = User;

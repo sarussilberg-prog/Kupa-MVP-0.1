@@ -124,6 +124,7 @@ Stores user profile information. Integrates with Supabase Auth.
 |--------|------|-------------|-------------|
 | id | UUID | PRIMARY KEY, REFERENCES auth.users(id) | User ID from Supabase Auth |
 | name | VARCHAR(100) | NOT NULL | Display name |
+| email | VARCHAR(255) | | User email (synced from auth.users) |
 | avatar_url | TEXT | | Profile picture URL |
 | phone | VARCHAR(20) | | Phone number (for display) |
 | default_currency | VARCHAR(3) | DEFAULT 'USD' | Preferred currency |
@@ -519,6 +520,7 @@ Complete SQL schema for creating all tables, indexes, and views.
 CREATE TABLE profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
+    email VARCHAR(255),
     avatar_url TEXT,
     phone VARCHAR(20),
     default_currency VARCHAR(3) DEFAULT 'USD',

@@ -38,13 +38,15 @@ export const useAppStore = create<AppState>((set) => ({
             session,
             currentUser: session
                 ? {
-                      id: session.user.id,
-                      email: session.user.email ?? '',
-                      name: session.user.user_metadata?.full_name ?? session.user.email ?? '',
-                      avatarUrl: session.user.user_metadata?.avatar_url ?? undefined,
-                      createdAt: new Date(session.user.created_at),
-                      updatedAt: new Date(session.user.updated_at ?? session.user.created_at),
-                  }
+                    id: session.user.id,
+                    email: session.user.email ?? '',
+                    name: session.user.user_metadata?.full_name ?? session.user.email ?? '',
+                    avatarUrl: session.user.user_metadata?.avatar_url ?? undefined,
+                    defaultCurrency: 'USD',
+                    language: 'en' as const,
+                    createdAt: new Date(session.user.created_at),
+                    updatedAt: new Date(session.user.updated_at ?? session.user.created_at),
+                }
                 : null,
         }),
 

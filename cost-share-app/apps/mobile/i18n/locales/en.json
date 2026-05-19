@@ -73,6 +73,18 @@
         "description": "Description",
         "amount": "Amount",
         "category": "Category",
-        "date": "Date"
+        "date": "Date",
+        "paidBy": "Paid By",
+        "splitBetween": "Split Between"
+    },
+    "balances": {
+        "title": "Balances",
+        "settledUp": "Settled up",
+        "getsBack": "Gets back",
+        "owes": "Owes",
+        "paid": "Paid",
+        "simplifiedDebts": "Simplified Debts",
+        "allSettled": "All settled up!",
+        "noDebts": "No outstanding debts in this group"
     }
 }
