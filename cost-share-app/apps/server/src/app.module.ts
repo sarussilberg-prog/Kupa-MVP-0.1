@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SupabaseModule } from './database/supabase.module';
+import { AuthModule } from './auth/auth.module';
 import { UsersController } from './controllers/users.controller';
 import { GroupsController } from './controllers/groups.controller';
 import { ExpensesController } from './controllers/expenses.controller';
@@ -15,6 +16,7 @@ import { SettlementsService } from './services/settlements.service';
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         SupabaseModule,
+        AuthModule,
     ],
     controllers: [
         UsersController,
