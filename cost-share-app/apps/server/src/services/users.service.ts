@@ -1,37 +1,47 @@
 /**
- * Users Service
- * Business logic for user operations
+ * Profiles Service (renamed from Users Service)
+ * Business logic for user profile operations
  */
 
 import { Injectable } from '@nestjs/common';
-import { User } from '@cost-share/shared';
-import { users } from '../data/mock-data';
+import { Profile, UpdateProfileDto } from '@cost-share/shared';
+import { profiles } from '../data/mock-data';
 
 @Injectable()
 export class UsersService {
     /**
-     * Get all users
+     * Get all profiles
      */
-    findAll(): User[] {
-        return users;
+    findAll(): Profile[] {
+        return profiles;
     }
 
     /**
-     * Get user by ID
+     * Get profile by ID
      */
-    findById(id: string): User | undefined {
-        return users.find(user => user.id === id);
+    findById(id: string): Profile | undefined {
+        return profiles.find(profile => profile.id === id);
     }
 
     /**
-     * Update user
+     * Update profile
      * In a real app, this would update the database
      */
-    update(id: string, updates: Partial<User>): User | undefined {
-        const user = users.find(u => u.id === id);
-        if (!user) return undefined;
+    update(id: string, updates: UpdateProfileDto): Profile | undefined {
+        const profile = profiles.find(p => p.id === id);
+        if (!profile) return undefined;
 
-        Object.assign(user, updates, { updatedAt: new Date() });
-        return user;
+        Object.assign(profile, updates, { updatedAt: new Date() });
+        return profile;
+    }
+
+    /**
+     * Search profiles by name
+     */
+    searchByName(query: string): Profile[] {
+        const lowerQuery = query.toLowerCase();
+        return profiles.filter(p =>
+            p.name.toLowerCase().includes(lowerQuery)
+        );
     }
 }

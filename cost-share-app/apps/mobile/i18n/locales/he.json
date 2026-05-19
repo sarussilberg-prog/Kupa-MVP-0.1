@@ -23,10 +23,24 @@
         "createGroup": "צור קבוצה",
         "noGroups": "אין קבוצות עדיין",
         "groupName": "שם הקבוצה",
+        "enterGroupName": "הזן שם קבוצה",
         "description": "תיאור",
+        "enterDescription": "הזן תיאור (אופציונלי)",
+        "groupType": "סוג קבוצה",
+        "selectMembers": "בחר חברים",
+        "addMember": "הוסף חבר",
         "members": "חברים",
+        "balances": "יתרות",
+        "expenses": "הוצאות",
+        "settleUp": "סגור חשבון",
         "loadError": "טעינת הקבוצות נכשלה",
-        "createError": "יצירת הקבוצה נכשלה"
+        "createError": "יצירת הקבוצה נכשלה",
+        "types": {
+            "trip": "טיול",
+            "home": "בית",
+            "couple": "זוג",
+            "general": "כללי"
+        }
     },
     "history": {
         "title": "היסטוריה",

@@ -23,10 +23,24 @@
         "createGroup": "Create Group",
         "noGroups": "No groups yet",
         "groupName": "Group Name",
+        "enterGroupName": "Enter group name",
         "description": "Description",
+        "enterDescription": "Enter description (optional)",
+        "groupType": "Group Type",
+        "selectMembers": "Select Members",
+        "addMember": "Add Member",
         "members": "Members",
+        "balances": "Balances",
+        "expenses": "Expenses",
+        "settleUp": "Settle Up",
         "loadError": "Failed to load groups",
-        "createError": "Failed to create group"
+        "createError": "Failed to create group",
+        "types": {
+            "trip": "Trip",
+            "home": "Home",
+            "couple": "Couple",
+            "general": "General"
+        }
     },
     "history": {
         "title": "History",

@@ -4,11 +4,11 @@
  * NO business logic - only UI composition
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store';
-import { fetchGroups } from '../../services/groups.service';
+import { fetchGroups, getGroupMembers } from '../../services/groups.service';
 import { useLoading } from '../../hooks/useLoading';
 import { LoadingIndicator } from '../../components/LoadingIndicator';
 import { Group } from '@cost-share/shared';
@@ -17,6 +17,7 @@ export function GroupsScreen() {
     const { t } = useTranslation();
     const { groups } = useAppStore();
     const { isLoading, startLoading, stopLoading } = useLoading();
+    const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
     useEffect(() => {
         loadGroups();
@@ -24,7 +25,16 @@ export function GroupsScreen() {
 
     const loadGroups = async () => {
         startLoading();
-        await fetchGroups();
+        const fetchedGroups = await fetchGroups();
+        
+        // Fetch member counts for each group
+        const counts: Record<string, number> = {};
+        for (const group of fetchedGroups) {
+            const members = await getGroupMembers(group.id);
+            counts[group.id] = members.length;
+        }
+        setMemberCounts(counts);
+        
         stopLoading();
     };
 
@@ -40,7 +50,7 @@ export function GroupsScreen() {
                 <Text className="text-gray-600 mt-1">{item.description}</Text>
             )}
             <Text className="text-sm text-gray-500 mt-2">
-                {t('groups.members')}: {item.memberIds.length}
+                {t('groups.members')}: {memberCounts[item.id] || 0}
             </Text>
         </TouchableOpacity>
     );
