@@ -7,7 +7,17 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { AppIcon, AppIconName } from '../components/AppIcon';
 import { colors } from '../theme';
+
+function tabBarIcon(
+    focusedName: AppIconName,
+    outlineName: AppIconName
+): (props: { color: string; size: number; focused: boolean }) => React.ReactElement {
+    return ({ color, size, focused }) => (
+        <AppIcon name={focused ? focusedName : outlineName} size={size} color={color} />
+    );
+}
 import { GroupsListScreen } from '../screens/groups/GroupsListScreen';
 import { GroupDetailScreen } from '../screens/groups/GroupDetailScreen';
 import { CreateGroupScreen } from '../screens/groups/CreateGroupScreen';
@@ -23,6 +33,7 @@ import { SettlementHistoryScreen } from '../screens/balances/SettlementHistorySc
 import { ActivityFeedScreen } from '../screens/activity/ActivityFeedScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { SettingsScreen } from '../screens/profile/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -136,6 +147,11 @@ function ProfileStack() {
                 component={EditProfileScreen}
                 options={{ title: t('profile.editProfile') }}
             />
+            <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: t('settings.title') }}
+            />
         </Stack.Navigator>
     );
 }
@@ -154,17 +170,26 @@ export function AppNavigator() {
             <Tab.Screen
                 name="Groups"
                 component={GroupsStack}
-                options={{ tabBarLabel: t('tabs.groups') }}
+                options={{
+                    tabBarLabel: t('tabs.groups'),
+                    tabBarIcon: tabBarIcon('people', 'people-outline'),
+                }}
             />
             <Tab.Screen
                 name="Activity"
                 component={ActivityStack}
-                options={{ tabBarLabel: t('tabs.activity') }}
+                options={{
+                    tabBarLabel: t('tabs.activity'),
+                    tabBarIcon: tabBarIcon('time', 'time-outline'),
+                }}
             />
             <Tab.Screen
                 name="Profile"
                 component={ProfileStack}
-                options={{ tabBarLabel: t('tabs.profile') }}
+                options={{
+                    tabBarLabel: t('tabs.profile'),
+                    tabBarIcon: tabBarIcon('person', 'person-outline'),
+                }}
             />
         </Tab.Navigator>
     );

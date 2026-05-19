@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { ExpensesService } from '../services/expenses.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 import {
     ApiResponse,
     Expense,
@@ -30,9 +32,9 @@ export class ExpensesController {
     @Post()
     async create(
         @Body() dto: CreateExpenseDto,
+        @CurrentUser() user: AuthUser,
     ): Promise<ApiResponse<Expense> | ApiResponse<never>> {
-        // TODO: get createdBy from auth token. For now use paidBy as a stand-in.
-        const createdBy = dto.paidBy;
+        const createdBy = user.id;
         const result = await this.expensesService.create(dto, createdBy);
         if ('error' in result) return { success: false, error: result.error };
         return { success: true, data: result, message: 'Expense created successfully' };

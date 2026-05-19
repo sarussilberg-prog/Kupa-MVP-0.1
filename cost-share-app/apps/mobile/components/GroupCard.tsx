@@ -5,23 +5,18 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, I18nManager } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Group } from '@cost-share/shared';
+import { AppIcon } from './AppIcon';
+import { GroupAvatar } from './GroupAvatar';
+import { colors } from '../theme';
 
 interface GroupCardProps {
     group: Group;
     memberCount?: number;
     onPress: (groupId: string) => void;
 }
-
-const groupTypeEmoji: Record<string, string> = {
-    trip: '✈️',
-    home: '🏠',
-    couple: '💑',
-    general: '👥',
-    other: '📋',
-};
 
 export function GroupCard({ group, memberCount, onPress }: GroupCardProps) {
     const { t } = useTranslation();
@@ -33,11 +28,12 @@ export function GroupCard({ group, memberCount, onPress }: GroupCardProps) {
             className="bg-white rounded-2xl p-4 mb-3 border border-gray-100"
         >
             <View className="flex-row items-center">
-                {/* Group Icon */}
-                <View className="w-12 h-12 rounded-xl bg-primary-extra-light justify-center items-center mr-3">
-                    <Text className="text-xl">
-                        {groupTypeEmoji[group.groupType] || '👥'}
-                    </Text>
+                <View className="mr-3">
+                    <GroupAvatar
+                        imageUrl={group.imageUrl}
+                        groupType={group.groupType}
+                        size="sm"
+                    />
                 </View>
 
                 {/* Group Info */}
@@ -62,8 +58,11 @@ export function GroupCard({ group, memberCount, onPress }: GroupCardProps) {
                     </View>
                 </View>
 
-                {/* Arrow */}
-                <Text className="text-gray-300 text-lg">›</Text>
+                <AppIcon
+                    name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'}
+                    size={20}
+                    color={colors.gray300}
+                />
             </View>
         </TouchableOpacity>
     );

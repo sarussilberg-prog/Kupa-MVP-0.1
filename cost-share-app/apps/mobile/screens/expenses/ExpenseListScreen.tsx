@@ -80,7 +80,7 @@ export function ExpenseListScreen() {
                 }
                 ListEmptyComponent={
                     <EmptyState
-                        icon="💰"
+                        iconName="cash-outline"
                         title={t('expenses.noExpenses')}
                         message={t('expenses.noExpensesMessage')}
                     />

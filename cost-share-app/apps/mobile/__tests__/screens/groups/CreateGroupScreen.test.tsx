@@ -17,6 +17,17 @@ jest.mock('@react-navigation/native', () => {
 
 jest.mock('../../../services/groups.service', () => ({
     createGroup: jest.fn(),
+    updateGroup: jest.fn(),
+}));
+
+jest.mock('../../../services/storage.service', () => ({
+    uploadGroupImage: jest.fn(),
+}));
+
+jest.mock('expo-image-picker', () => ({
+    requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+    launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true }),
+    MediaTypeOptions: { Images: 'images' },
 }));
 
 jest.mock('../../../services/users.service', () => ({

@@ -27,10 +27,10 @@ describe('BalanceCard', () => {
     });
 
     it('shows settled status for zero balance', () => {
-        const { getByText } = render(
+        const { getByText, getByTestId } = render(
             <BalanceCard userName="Bob" balance={0} currency="USD" />
         );
         expect(getByText('balances.settledUp')).toBeTruthy();
-        expect(getByText('✓')).toBeTruthy();
+        expect(getByTestId('balance-settled-icon')).toBeTruthy();
     });
 });

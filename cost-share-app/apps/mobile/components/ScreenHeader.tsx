@@ -6,10 +6,13 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { AppIcon, AppIconName } from './AppIcon';
+import { colors } from '../theme';
 
 interface ScreenHeaderProps {
     title: string;
     rightLabel?: string;
+    rightIconName?: AppIconName;
     onRightPress?: () => void;
     subtitle?: string;
 }
@@ -17,6 +20,7 @@ interface ScreenHeaderProps {
 export function ScreenHeader({
     title,
     rightLabel,
+    rightIconName = 'add',
     onRightPress,
     subtitle,
 }: ScreenHeaderProps) {
@@ -37,8 +41,9 @@ export function ScreenHeader({
                     <TouchableOpacity
                         onPress={onRightPress}
                         activeOpacity={0.7}
-                        className="bg-primary rounded-xl px-4 py-2"
+                        className="bg-primary rounded-xl px-4 py-2 flex-row items-center gap-1.5"
                     >
+                        <AppIcon name={rightIconName} size={18} color={colors.white} />
                         <Text className="text-white font-semibold text-sm">
                             {rightLabel}
                         </Text>

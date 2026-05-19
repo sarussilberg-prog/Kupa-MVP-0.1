@@ -68,6 +68,12 @@
         "memberAdded": "Member added",
         "memberRemoved": "Member removed",
         "nameRequired": "Group name is required",
+        "groupImage": "Group Image",
+        "tapToChangeImage": "Tap to choose or change image",
+        "removeImage": "Remove image",
+        "imageUploadError": "Failed to upload image",
+        "imagePermissionTitle": "Photo Access Required",
+        "imagePermissionMessage": "Allow photo library access to set a group image",
         "types": {
             "trip": "Trip",
             "home": "Home",
@@ -154,6 +160,10 @@
             "credit_card": "Credit Card",
             "other": "Other"
         }
+    },
+    "settings": {
+        "title": "Settings",
+        "language": "Language"
     },
     "profile": {
         "title": "Profile",

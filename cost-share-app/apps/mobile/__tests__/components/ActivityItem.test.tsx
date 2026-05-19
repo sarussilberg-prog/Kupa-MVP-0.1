@@ -36,13 +36,13 @@ describe('ActivityItem', () => {
     });
 
     it('renders the expense icon for expense activities', () => {
-        const { getByText } = render(<ActivityItem activity={expenseActivity} />);
-        expect(getByText('💰')).toBeTruthy();
+        const { getByTestId } = render(<ActivityItem activity={expenseActivity} />);
+        expect(getByTestId('activity-icon-expense')).toBeTruthy();
     });
 
     it('renders the settlement icon for settlement activities', () => {
-        const { getByText } = render(<ActivityItem activity={settlementActivity} />);
-        expect(getByText('🤝')).toBeTruthy();
+        const { getByTestId } = render(<ActivityItem activity={settlementActivity} />);
+        expect(getByTestId('activity-icon-settlement')).toBeTruthy();
     });
 
     it('calls onPress with the activity when pressed', () => {

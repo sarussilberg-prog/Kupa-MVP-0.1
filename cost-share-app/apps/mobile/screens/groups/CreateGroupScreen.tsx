@@ -11,7 +11,9 @@ import { useNavigation } from '@react-navigation/native';
 import { GroupType } from '@cost-share/shared';
 import { useLoading } from '../../hooks/useLoading';
 import { useAppStore } from '../../store';
-import { createGroup } from '../../services/groups.service';
+import { createGroup, updateGroup } from '../../services/groups.service';
+import { uploadGroupImage } from '../../services/storage.service';
+import { GroupImagePicker } from '../../components/GroupImagePicker';
 import { fetchUsers } from '../../services/users.service';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -39,6 +41,7 @@ export function CreateGroupScreen() {
     const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
     const [availableUsers, setAvailableUsers] = useState<User[]>([]);
     const [nameError, setNameError] = useState('');
+    const [localImageUri, setLocalImageUri] = useState<string | null>(null);
 
     useEffect(() => {
         const loadUsers = async () => {
@@ -72,6 +75,12 @@ export function CreateGroupScreen() {
         stopLoading();
 
         if (result) {
+            if (localImageUri) {
+                const imageUrl = await uploadGroupImage(result.id, localImageUri);
+                if (imageUrl) {
+                    await updateGroup(result.id, { imageUrl });
+                }
+            }
             navigation.goBack();
         }
     };
@@ -87,6 +96,12 @@ export function CreateGroupScreen() {
     return (
         <ScrollView className="flex-1 bg-slate-50">
             <View className="p-4">
+                <GroupImagePicker
+                    localUri={localImageUri}
+                    groupType={groupType}
+                    onChange={setLocalImageUri}
+                />
+
                 {/* Group Name */}
                 <Input
                     label={t('groups.groupName')}

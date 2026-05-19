@@ -68,6 +68,12 @@
         "memberAdded": "חבר נוסף",
         "memberRemoved": "חבר הוסר",
         "nameRequired": "שם הקבוצה נדרש",
+        "groupImage": "תמונת קבוצה",
+        "tapToChangeImage": "הקש כדי לבחור או להחליף תמונה",
+        "removeImage": "הסר תמונה",
+        "imageUploadError": "העלאת התמונה נכשלה",
+        "imagePermissionTitle": "נדרשת גישה לתמונות",
+        "imagePermissionMessage": "אפשר גישה לגלריה כדי לבחור תמונה לקבוצה",
         "types": {
             "trip": "טיול",
             "home": "בית",
@@ -154,6 +160,10 @@
             "credit_card": "כרטיס אשראי",
             "other": "אחר"
         }
+    },
+    "settings": {
+        "title": "הגדרות",
+        "language": "שפה"
     },
     "profile": {
         "title": "פרופיל",

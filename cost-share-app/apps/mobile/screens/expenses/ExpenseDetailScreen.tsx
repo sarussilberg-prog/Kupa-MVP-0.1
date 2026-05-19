@@ -81,7 +81,7 @@ export function ExpenseDetailScreen() {
     if (!expense) {
         return (
             <EmptyState
-                icon="❌"
+                iconName="alert-circle-outline"
                 title={t('common.error')}
                 message={t('common.loadError')}
             />

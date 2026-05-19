@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { GroupsService } from '../services/groups.service';
 import { CalculationsService } from '../services/calculations.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthUser } from '../auth/auth.types';
 import {
     ApiResponse,
     Group,
@@ -20,8 +22,8 @@ export class GroupsController {
     ) {}
 
     @Get()
-    async findAll(): Promise<ApiResponse<Group[]>> {
-        const groups = await this.groupsService.findAll();
+    async findAll(@CurrentUser() user: AuthUser): Promise<ApiResponse<Group[]>> {
+        const groups = await this.groupsService.findAllForUser(user.id);
         return { success: true, data: groups };
     }
 
@@ -33,11 +35,11 @@ export class GroupsController {
     }
 
     @Post()
-    async create(@Body() dto: CreateGroupDto): Promise<ApiResponse<Group>> {
-        // TODO: get createdBy from auth token once Supabase Auth is wired up.
-        // For now the caller must supply a valid profile UUID via dto.memberIds[0].
-        const createdBy = dto.memberIds[0];
-        const group = await this.groupsService.create(dto, createdBy);
+    async create(
+        @Body() dto: CreateGroupDto,
+        @CurrentUser() user: AuthUser,
+    ): Promise<ApiResponse<Group>> {
+        const group = await this.groupsService.create(dto, user.id);
         return { success: true, data: group, message: 'Group created successfully' };
     }
 

@@ -5,10 +5,20 @@
  */
 
 import { ApiResponse } from '@cost-share/shared';
+import { supabase } from '../lib/supabase';
 
-const API_BASE_URL = __DEV__
-    ? 'http://172.20.10.2:3000/api'  // Your Mac's local IP address
-    : 'http://localhost:3000/api';
+export function getApiBaseUrl(): string {
+    if (process.env.EXPO_PUBLIC_API_URL) {
+        return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
+    }
+    return 'http://localhost:3000/api';
+}
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+}
 
 /**
  * Generic API request wrapper
@@ -18,15 +28,22 @@ async function apiRequest<T>(
     options?: RequestInit
 ): Promise<ApiResponse<T>> {
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const authHeaders = await getAuthHeaders();
+        const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
+                ...authHeaders,
                 ...options?.headers,
             },
         });
 
         const data = await response.json();
+
+        if (response.status === 401) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
         return data;
     } catch (error) {
         console.error('API Error:', error);

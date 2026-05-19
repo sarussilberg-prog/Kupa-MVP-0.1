@@ -8,6 +8,8 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MemberAvatar } from './MemberAvatar';
+import { AppIcon } from './AppIcon';
+import { colors } from '../theme';
 
 interface BalanceCardProps {
     userName: string;
@@ -55,11 +57,18 @@ export function BalanceCard({ userName, avatarUrl, balance, currency }: BalanceC
                     </Text>
                 </View>
 
-                <Text className={`text-base font-bold ${getBalanceColorClass()}`}>
-                    {isSettled
-                        ? '✓'
-                        : `${isNegative ? '-' : '+'}${currency} ${Math.abs(balance).toFixed(2)}`}
-                </Text>
+                {isSettled ? (
+                    <AppIcon
+                        name="checkmark-circle"
+                        size={24}
+                        color={colors.gray400}
+                        testID="balance-settled-icon"
+                    />
+                ) : (
+                    <Text className={`text-base font-bold ${getBalanceColorClass()}`}>
+                        {`${isNegative ? '-' : '+'}${currency} ${Math.abs(balance).toFixed(2)}`}
+                    </Text>
+                )}
             </View>
         </View>
     );

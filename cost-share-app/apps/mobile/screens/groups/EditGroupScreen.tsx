@@ -11,6 +11,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { GroupType } from '@cost-share/shared';
 import { useLoading } from '../../hooks/useLoading';
 import { getGroupById, updateGroup } from '../../services/groups.service';
+import { uploadGroupImage } from '../../services/storage.service';
+import { GroupImagePicker } from '../../components/GroupImagePicker';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { CurrencyPicker } from '../../components/CurrencyPicker';
@@ -36,6 +38,9 @@ export function EditGroupScreen() {
     const [currency, setCurrency] = useState('USD');
     const [nameError, setNameError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [imageUrl, setImageUrl] = useState<string | undefined>();
+    const [localImageUri, setLocalImageUri] = useState<string | null>(null);
+    const [imageRemoved, setImageRemoved] = useState(false);
 
     useEffect(() => {
         const loadGroup = async () => {
@@ -45,6 +50,7 @@ export function EditGroupScreen() {
                 setDescription(group.description || '');
                 setGroupType(group.groupType);
                 setCurrency(group.defaultCurrency);
+                setImageUrl(group.imageUrl);
             }
             setLoading(false);
         };
@@ -64,16 +70,35 @@ export function EditGroupScreen() {
         if (!validateForm()) return;
 
         startLoading();
+        let nextImageUrl: string | undefined = imageRemoved ? undefined : imageUrl;
+
+        if (localImageUri) {
+            const uploadedUrl = await uploadGroupImage(groupId, localImageUri);
+            if (uploadedUrl) {
+                nextImageUrl = uploadedUrl;
+            }
+        }
+
         const result = await updateGroup(groupId, {
             name: name.trim(),
             description: description.trim() || undefined,
             groupType,
             defaultCurrency: currency,
+            imageUrl: imageRemoved ? '' : nextImageUrl,
         });
         stopLoading();
 
         if (result) {
             navigation.goBack();
+        }
+    };
+
+    const handleImageChange = (uri: string | null) => {
+        setLocalImageUri(uri);
+        if (uri === null) {
+            setImageRemoved(true);
+        } else {
+            setImageRemoved(false);
         }
     };
 
@@ -84,6 +109,13 @@ export function EditGroupScreen() {
     return (
         <ScrollView className="flex-1 bg-slate-50">
             <View className="p-4">
+                <GroupImagePicker
+                    imageUrl={imageRemoved ? null : imageUrl}
+                    localUri={localImageUri}
+                    groupType={groupType}
+                    onChange={handleImageChange}
+                />
+
                 {/* Group Name */}
                 <Input
                     label={t('groups.groupName')}
